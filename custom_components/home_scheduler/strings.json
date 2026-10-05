@@ -1,0 +1,26 @@
+{
+  "title": "Home Scheduler & Simulator",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Home Scheduler & Simulator",
+        "description": "Create a scheduler with a fictional demo home. Edit devices, schedules, and model bindings in the Home Scheduler card. Physical control starts off."
+      }
+    },
+    "abort": {
+      "already_configured": "Home Scheduler & Simulator is already configured."
+    }
+  },
+  "services": {
+    "command": {
+      "name": "Update home schedule",
+      "description": "Admin-only device schedule, connection, display, and model edits.",
+      "fields": {
+        "op": {
+          "name": "Operation",
+          "description": "Operation to perform, for example play, settings, cell, fill, or import_model."
+        }
+      }
+    }
+  }
+}

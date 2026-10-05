@@ -1,0 +1,41 @@
+name: Bug report
+description: Report a reproducible scheduler or renderer problem.
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Home Scheduler version
+    validations:
+      required: true
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+    validations:
+      required: true
+  - type: input
+    id: renderer_version
+    attributes:
+      label: floor3dx-card version, or grid-only mode
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Operating mode
+      options:
+        - Simulation
+        - Physical devices
+        - Installation
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps and observed behavior
+      description: Use the fictional demo when possible. Omit personal floorplans, credentials, and private entity IDs.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant redacted logs
+      render: text

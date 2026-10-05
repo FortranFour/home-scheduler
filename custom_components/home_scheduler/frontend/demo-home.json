@@ -1,0 +1,334 @@
+{
+  "type": "custom:floor3dx-card",
+  "name": "Fictional demo home",
+  "path": "/home_scheduler/",
+  "objfile": "demo-home.glb",
+  "header": "no",
+  "shadow": "no",
+  "click": "no",
+  "selectionMode": "no",
+  "editModeNotifications": "no",
+  "pro_skill": "mobile",
+  "globalLightPower": 0.75,
+  "backgroundColor": "#dce6ee",
+  "camera_position": {
+    "x": 9,
+    "y": 13.5,
+    "z": 12.5
+  },
+  "camera_target": {
+    "x": 0,
+    "y": 0,
+    "z": 0.8
+  },
+  "north": {
+    "x": 0,
+    "z": -1
+  },
+  "entities": [
+    {
+      "entity": "light.hs_demo_living",
+      "type3d": "light",
+      "object_id": "LivingLamp",
+      "light": {
+        "shadow": "no",
+        "lumens": 650,
+        "distance": 9,
+        "decay": 1,
+        "color": "#ffb830",
+        "offset": {
+          "x": 0,
+          "y": -0.11,
+          "z": 0
+        },
+        "follow_entity": "yes"
+      }
+    },
+    {
+      "entity": "light.hs_demo_living",
+      "type3d": "color",
+      "object_id": "LivingLamp",
+      "colorcondition": [
+        {
+          "state": "on",
+          "color": "entity_color"
+        },
+        {
+          "state": "off",
+          "color": "#637180"
+        }
+      ]
+    },
+    {
+      "entity": "light.hs_demo_kitchen",
+      "type3d": "light",
+      "object_id": "KitchenLamp",
+      "light": {
+        "shadow": "no",
+        "lumens": 650,
+        "distance": 9,
+        "decay": 1,
+        "color": "#ffb830",
+        "offset": {
+          "x": 0,
+          "y": -0.11,
+          "z": 0
+        },
+        "follow_entity": "yes"
+      }
+    },
+    {
+      "entity": "light.hs_demo_kitchen",
+      "type3d": "color",
+      "object_id": "KitchenLamp",
+      "colorcondition": [
+        {
+          "state": "on",
+          "color": "entity_color"
+        },
+        {
+          "state": "off",
+          "color": "#637180"
+        }
+      ]
+    },
+    {
+      "entity": "light.hs_demo_bedroom",
+      "type3d": "light",
+      "object_id": "BedroomLamp",
+      "light": {
+        "shadow": "no",
+        "lumens": 650,
+        "distance": 9,
+        "decay": 1,
+        "color": "#ffb830",
+        "offset": {
+          "x": 0,
+          "y": -0.11,
+          "z": 0
+        },
+        "follow_entity": "yes"
+      }
+    },
+    {
+      "entity": "light.hs_demo_bedroom",
+      "type3d": "color",
+      "object_id": "BedroomLamp",
+      "colorcondition": [
+        {
+          "state": "on",
+          "color": "entity_color"
+        },
+        {
+          "state": "off",
+          "color": "#637180"
+        }
+      ]
+    },
+    {
+      "entity": "light.hs_demo_study",
+      "type3d": "light",
+      "object_id": "StudyLamp",
+      "light": {
+        "shadow": "no",
+        "lumens": 650,
+        "distance": 9,
+        "decay": 1,
+        "color": "#ffb830",
+        "offset": {
+          "x": 0,
+          "y": -0.11,
+          "z": 0
+        },
+        "follow_entity": "yes"
+      }
+    },
+    {
+      "entity": "light.hs_demo_study",
+      "type3d": "color",
+      "object_id": "StudyLamp",
+      "colorcondition": [
+        {
+          "state": "on",
+          "color": "entity_color"
+        },
+        {
+          "state": "off",
+          "color": "#637180"
+        }
+      ]
+    },
+    {
+      "entity": "light.hs_demo_porch",
+      "type3d": "light",
+      "object_id": "PorchLamp",
+      "light": {
+        "shadow": "no",
+        "lumens": 650,
+        "distance": 9,
+        "decay": 1,
+        "color": "#ffb830",
+        "offset": {
+          "x": 0,
+          "y": -0.11,
+          "z": 0
+        },
+        "follow_entity": "yes"
+      }
+    },
+    {
+      "entity": "light.hs_demo_porch",
+      "type3d": "color",
+      "object_id": "PorchLamp",
+      "colorcondition": [
+        {
+          "state": "on",
+          "color": "entity_color"
+        },
+        {
+          "state": "off",
+          "color": "#637180"
+        }
+      ]
+    },
+    {
+      "entity": "light.hs_demo_accent",
+      "type3d": "light",
+      "object_id": "AccentLamp",
+      "light": {
+        "shadow": "no",
+        "lumens": 650,
+        "distance": 9,
+        "decay": 1,
+        "color": "#ffb830",
+        "offset": {
+          "x": 0,
+          "y": -0.11,
+          "z": 0
+        },
+        "follow_entity": "yes"
+      }
+    },
+    {
+      "entity": "light.hs_demo_accent",
+      "type3d": "color",
+      "object_id": "AccentLamp",
+      "colorcondition": [
+        {
+          "state": "on",
+          "color": "entity_color"
+        },
+        {
+          "state": "off",
+          "color": "#637180"
+        }
+      ]
+    },
+    {
+      "entity": "fan.hs_demo_ceiling",
+      "type3d": "rotate",
+      "object_id": "LivingFanBlades",
+      "rotate": {
+        "axis": "y",
+        "round_per_second": 1,
+        "hinge": "LivingFanHub"
+      }
+    },
+    {
+      "entity": "fan.hs_demo_exhaust",
+      "type3d": "rotate",
+      "object_id": "ExtractorBlades",
+      "rotate": {
+        "axis": "z",
+        "round_per_second": 1.5
+      }
+    },
+    {
+      "entity": "switch.hs_demo_fountain",
+      "type3d": "hide",
+      "object_id": "FountainJet",
+      "hide": {
+        "state": "off"
+      }
+    },
+    {
+      "entity": "switch.hs_demo_fountain",
+      "type3d": "color",
+      "object_id": "FountainWater",
+      "colorcondition": [
+        {
+          "state": "on",
+          "color": "#18c7e0"
+        },
+        {
+          "state": "off",
+          "color": "#627788"
+        }
+      ]
+    },
+    {
+      "entity": "switch.hs_demo_aquarium",
+      "type3d": "color",
+      "object_id": "AquariumPump",
+      "colorcondition": [
+        {
+          "state": "on",
+          "color": "#18c7e0"
+        },
+        {
+          "state": "off",
+          "color": "#435260"
+        }
+      ]
+    },
+    {
+      "entity": "cover.hs_demo_blind",
+      "type3d": "shade",
+      "object_id": "StudyBlind",
+      "shade": {
+        "invert": "no"
+      }
+    },
+    {
+      "entity": "cover.hs_demo_curtain",
+      "type3d": "shade",
+      "object_id": "BedroomCurtain",
+      "shade": {
+        "invert": "no"
+      }
+    },
+    {
+      "entity": "cover.hs_demo_garage",
+      "type3d": "cover",
+      "object_id": "GarageDoor",
+      "cover": {
+        "pane": "GarageDoor",
+        "side": "up"
+      }
+    },
+    {
+      "entity": "cover.hs_demo_shutter",
+      "type3d": "cover",
+      "object_id": "PatioShutter",
+      "cover": {
+        "pane": "PatioShutter",
+        "side": "up"
+      }
+    }
+  ],
+  "daylight": {
+    "sun_entity": "sun.hs_demo_sun",
+    "weather_entity": "weather.hs_demo_weather",
+    "time_entity": "input_number.hs_demo_hour",
+    "ambient": {
+      "day": 0.7,
+      "night": 0.16
+    },
+    "hemisphere": "yes",
+    "background": {
+      "day": "#dce6ee",
+      "dusk": "#a1aabf",
+      "night": "#1b293c"
+    }
+  }
+}

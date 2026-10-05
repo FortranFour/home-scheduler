@@ -1,0 +1,8 @@
+title: Home Simulator
+path: home-simulator
+icon: mdi:home-clock-outline
+type: panel
+cards:
+  - type: custom:home-scheduler-card
+    model_editor: false
+    renderer_url: /home_scheduler/demo-home.json?v=0.3.0

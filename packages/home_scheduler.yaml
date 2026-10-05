@@ -1,0 +1,19 @@
+# Optional YAML setup/helper; independent of the original lighting_scheduler.
+home_scheduler:
+
+recorder:
+  exclude:
+    entities:
+      - sensor.home_scheduler
+      - sensor.home_scheduler_frame
+
+input_select:
+  home_scheduler_mode:
+    name: Demo household mode
+    options:
+      - Home
+      - Guest
+      - Worker
+      - Away
+    initial: Home
+    icon: mdi:home-account

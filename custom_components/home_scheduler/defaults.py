@@ -1,0 +1,21 @@
+"""Fictional demo devices only. Targets are empty until the user maps them."""
+DEFAULT_DEVICES = [
+    {"entity": "light.hs_demo_living", "name": "Living room · Pendant", "watts": 18, "slots": [(72, 92)]},
+    {"entity": "light.hs_demo_kitchen", "name": "Kitchen · Ceiling", "watts": 14, "slots": [(24, 32), (68, 84)]},
+    {"entity": "light.hs_demo_bedroom", "name": "Bedroom · Lamp", "watts": 7, "slots": [(80, 95)]},
+    {"entity": "light.hs_demo_study", "name": "Study · Desk lamp", "watts": 9, "slots": [(34, 48), (52, 68)]},
+    {"entity": "light.hs_demo_porch", "name": "Porch · Wall light", "watts": 10, "slots": [(72, 96)]},
+    {"entity": "light.hs_demo_accent", "name": "Living room · Scene accent", "watts": 5, "use": False},
+    {"entity": "switch.hs_demo_fountain", "name": "Patio · Fountain", "watts": 35, "slots": [(36, 44), (64, 80)]},
+    {"entity": "switch.hs_demo_aquarium", "name": "Living room · Aquarium pump", "watts": 6, "slots": [(0, 96)]},
+    {"entity": "fan.hs_demo_ceiling", "name": "Living room · Ceiling fan", "watts": 24, "on": {"percentage": 60}, "slots": [(52, 88)]},
+    {"entity": "fan.hs_demo_exhaust", "name": "Kitchen · Extractor fan", "watts": 16, "on": {"percentage": 75}, "slots": [(25, 28), (70, 75)]},
+    {"entity": "cover.hs_demo_blind", "name": "Study · Roller blind", "device_class": "blind", "watts": 8, "travel_seconds": 10, "on": {"position": 85}, "slots": [(32, 72)]},
+    {"entity": "cover.hs_demo_curtain", "name": "Bedroom · Roman curtains", "device_class": "curtain", "watts": 10, "travel_seconds": 14, "on": {"position": 100}, "slots": [(28, 78)]},
+    {"entity": "cover.hs_demo_garage", "name": "Garage · Door", "device_class": "garage", "watts": 150, "travel_seconds": 12, "slots": [(31, 33), (69, 71)]},
+    {"entity": "cover.hs_demo_shutter", "name": "Patio · Rolling shutter", "device_class": "shutter", "watts": 40, "travel_seconds": 20, "on": {"position": 75}, "slots": [(44, 66)]},
+    {"entity": "scene.hs_demo_evening", "name": "Scene · Evening accent", "slots": [(74, 75)],
+     "effects": {"light.hs_demo_accent": {"state": "on", "brightness": 55, "color": "#bb75ff"}}},
+    {"entity": "scene.hs_demo_goodnight", "name": "Scene · Good night", "slots": [(92, 93)],
+     "effects": {"light.hs_demo_accent": {"state": "off"}}},
+]

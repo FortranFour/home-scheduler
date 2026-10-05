@@ -1,0 +1,10 @@
+command:
+  name: Update home schedule
+  description: Admin-only device schedule, connection, display and model edits.
+  fields:
+    op:
+      name: Operation
+      required: true
+      example: play
+      selector:
+        text:

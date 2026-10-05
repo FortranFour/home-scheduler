@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="160" viewBox="0 0 640 160"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" x="16" y="16" width="128" height="128" fill="none" stroke="#00b9ee" stroke-width="11" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M28 104 70 66 158 28 224 98V186L124 232 28 188V104Z"/>
+  <path d="M70 66 124 146 224 98M28 104 124 146V232"/>
+  <path d="m54 136 27 13v28l-27-13Z"/>
+  <path d="m153 157 24-11v31l-24 11Z" fill="#00b9ee" stroke-width="8"/>
+  <path d="m186 133 7-8m-4 29 13-5m-12 23 10 4" stroke-width="8"/>
+</svg>
+<g fill="#ffffff" font-family="Arial, sans-serif"><text x="168" y="76" font-size="44" font-weight="600">Home Scheduler</text><text x="169" y="115" font-size="28">&amp; Simulator</text></g></svg>
