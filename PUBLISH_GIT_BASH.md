@@ -1,5 +1,7 @@
 # Publish from Windows Git Bash
 
+**Already publishing FortranFour/home-scheduler?** Use [UPDATE_0_4_0.md](UPDATE_0_4_0.md) for this update. It preserves your checkout/history and covers testing, a release branch, PR, CI and version 0.4.0. The first-time setup below is for a new repository.
+
 These commands publish the supplied source as **FortranFour/home-scheduler**, a dedicated public repository. The repository name matches the documentation and issue URLs in the integration manifest. It is separate from `FortranFour/floor3dx-card`; do not copy this project into that renderer repository.
 
 Run the commands below **on your PC in Git Bash**. Home Assistant terminal commands in the README are for installing the integration on HA, not publishing to GitHub. No Python, Node, or build step is needed to upload the supplied package: the demo and branding are already built.
@@ -43,18 +45,18 @@ The result should be `FortranFour`. If another already-authenticated account is 
 
 ## 2. Extract the prepared source
 
-Download `home_scheduler_github_0_3_0.zip` to your Windows Downloads folder. Then:
+Download `home_scheduler_github_0_4_0.zip` to your Windows Downloads folder. Then:
 
 ```bash
 cd ~/Downloads
-unzip home_scheduler_github_0_3_0.zip
+unzip home_scheduler_github_0_4_0.zip
 cd home-scheduler
 ```
 
 If your Downloads folder is elsewhere, adjust the `cd`. If `unzip` is unavailable, Windows PowerShell can extract it from the same Git Bash directory:
 
 ```bash
-powershell.exe -NoProfile -Command 'Expand-Archive -LiteralPath home_scheduler_github_0_3_0.zip -DestinationPath .'
+powershell.exe -NoProfile -Command 'Expand-Archive -LiteralPath home_scheduler_github_0_4_0.zip -DestinationPath .'
 cd home-scheduler
 ```
 
@@ -67,7 +69,7 @@ git init -b main
 git add .
 git status --short
 git diff --cached --stat
-git commit -m "Initial Home Scheduler & Simulator 0.3.0"
+git commit -m "Initial Home Scheduler & Simulator 0.4.0"
 ```
 
 Review the staged file list before the commit. This distribution includes only fictional model/device data. Do not add your actual house preset, geometry, HA configuration, secrets, or `.storage` files. `.gitignore` excludes common private configuration/preset filenames, but cannot identify every arbitrarily named personal file.
@@ -77,7 +79,7 @@ If Git asks for an author name/email, configure them for this repository, then r
 ```bash
 git config user.name "FortranFour"
 git config user.email "YOUR_VERIFIED_OR_GITHUB_NOREPLY_EMAIL"
-git commit -m "Initial Home Scheduler & Simulator 0.3.0"
+git commit -m "Initial Home Scheduler & Simulator 0.4.0"
 ```
 
 Replace the email placeholder with your verified email or the exact no-reply address shown in **GitHub → Settings → Emails**. Commit author settings and authentication are separate.
@@ -119,13 +121,13 @@ If it already has commits, use a fresh clone and a review branch. Run this from 
 cd ~/Downloads
 gh repo clone FortranFour/home-scheduler home-scheduler-publish
 cd home-scheduler-publish
-git switch -c release-0.3.0
+git switch -c release-0.4.0
 git -C ../home-scheduler archive HEAD | tar -x
 git add .
 git diff --cached --stat
-git commit -m "Prepare Home Scheduler & Simulator 0.3.0"
-git push -u origin release-0.3.0
-gh pr create --repo FortranFour/home-scheduler --title "Prepare Home Scheduler & Simulator 0.3.0" --body-file RELEASE_NOTES.md
+git commit -m "Prepare Home Scheduler & Simulator 0.4.0"
+git push -u origin release-0.4.0
+gh pr create --repo FortranFour/home-scheduler --title "Prepare Home Scheduler & Simulator 0.4.0" --body-file RELEASE_NOTES.md
 ```
 
 The archive copies only committed source files and excludes `.git`, preserving the clone's history. Review the diff for obsolete files or conflicts with the existing project, set the description/topics as above, and merge the PR after checks pass. Then switch to the repository's default branch and `git pull --ff-only` before creating the release tag. Do not tag the review branch before merging.
@@ -152,18 +154,18 @@ gh run view RUN_ID --repo FortranFour/home-scheduler --log-failed
 
 These official validators cannot be represented as already passed before the repository exists on GitHub. Fix a failure, commit, push, and recheck; do not disable the validator to make the release appear ready.
 
-## 6. Publish version 0.3.0
+## 6. Publish version 0.4.0
 
 From the checked-out release commit on `main` (or the existing repository's default branch), create the matching tag and a standard GitHub release:
 
 ```bash
-git tag -a v0.3.0 -m "Home Scheduler & Simulator 0.3.0"
-git push origin v0.3.0
-gh release create v0.3.0 --repo FortranFour/home-scheduler --verify-tag --title "Home Scheduler & Simulator 0.3.0" --notes-file RELEASE_NOTES.md
-gh release view v0.3.0 --repo FortranFour/home-scheduler
+git tag -a v0.4.0 -m "Home Scheduler & Simulator 0.4.0"
+git push origin v0.4.0
+gh release create v0.4.0 --repo FortranFour/home-scheduler --verify-tag --title "Home Scheduler & Simulator 0.4.0" --notes-file RELEASE_NOTES.md
+gh release view v0.4.0 --repo FortranFour/home-scheduler
 ```
 
-HACS downloads the integration folder from the tagged repository. An additional ZIP release asset is not required. GitHub automatically provides source archives. Keep `manifest.json` version `0.3.0` aligned with release `v0.3.0`.
+HACS downloads the integration folder from the tagged repository. An additional ZIP release asset is not required. GitHub automatically provides source archives. Keep `manifest.json` version `0.4.0` aligned with release `v0.4.0`.
 
 Users can now add this URL to **HACS → Custom repositories**, category **Integration**:
 

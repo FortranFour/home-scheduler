@@ -1,4 +1,4 @@
-# Install Home Scheduler & Simulator 0.3.0
+# Install Home Scheduler & Simulator 0.4.0
 
 Requires Home Assistant 2026.3+. The fictional demo is unlinked from real devices. For the 3D view/editor, install [FortranFour/floor3dx-card](https://github.com/FortranFour/floor3dx-card) 1.4.0+ separately.
 
@@ -42,7 +42,11 @@ ha core check
 ha core restart
 ```
 
-The optional package includes YAML integration setup, the demo mode helper, and Recorder exclusions. The installer does not change `configuration.yaml`. It backs up replaced files and preserves saved schedules/private model files.
+The optional package includes YAML integration setup, the demo mode helper, and Recorder exclusions. The installer does not change `configuration.yaml`. It backs up replaced files and preserves existing package YAML, saved schedules, learning data and private model files.
+
+## Update from 0.3.0
+
+Use [UPDATE_0_4_0.md](UPDATE_0_4_0.md) to try this prepared package and then publish it from your existing Git Bash checkout. Keep `.storage/home_scheduler` and `.storage/home_scheduler_learning`. Your existing dashboard and floor3dx resource continue to work. No new scheduler module/resource or package setting is required. Open **Learn from actual use…** to opt in; existing schedules are unchanged.
 
 ## Upgrade from 0.2.x
 

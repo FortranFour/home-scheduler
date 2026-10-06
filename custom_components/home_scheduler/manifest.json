@@ -1,14 +1,22 @@
 {
   "domain": "home_scheduler",
   "name": "Home Scheduler & Simulator",
-  "codeowners": ["@FortranFour"],
+  "after_dependencies": [
+    "recorder"
+  ],
+  "codeowners": [
+    "@FortranFour"
+  ],
   "config_flow": true,
-  "dependencies": ["frontend", "http"],
+  "dependencies": [
+    "frontend",
+    "http"
+  ],
   "documentation": "https://github.com/FortranFour/home-scheduler",
   "integration_type": "service",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/FortranFour/home-scheduler/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "0.3.0"
+  "version": "0.4.0"
 }

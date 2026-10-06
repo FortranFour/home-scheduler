@@ -21,6 +21,16 @@
           "description": "Operation to perform, for example play, settings, cell, fill, or import_model."
         }
       }
+    },
+    "learning": {
+      "name": "Learn from actual use",
+      "description": "Admin-only observation, consensus proposals and isolated preview. Saving a proposal creates a new schedule without selecting it.",
+      "fields": {
+        "op": {
+          "name": "Operation",
+          "description": "configure, clear, history, propose, preview, or save."
+        }
+      }
     }
   }
 }

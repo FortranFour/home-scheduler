@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "custom_components/home_scheduler/frontend"
 OUT.mkdir(parents=True, exist_ok=True)
 binary = bytearray()
-gltf = {"asset": {"version": "2.0", "generator": "FortranFour Home Scheduler fictional demo 0.3.0"},
+gltf = {"asset": {"version": "2.0", "generator": "FortranFour Home Scheduler fictional demo 0.4.0"},
         "scene": 0, "scenes": [{"nodes": []}], "nodes": [], "meshes": [], "materials": [],
         "buffers": [], "bufferViews": [], "accessors": [], "textures": [], "images": [],
         "samplers": [{"magFilter": 9729, "minFilter": 9729, "wrapS": 33071, "wrapT": 33071}],

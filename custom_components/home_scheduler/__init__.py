@@ -18,6 +18,7 @@ from homeassistant import config_entries
 from homeassistant.components import frontend
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, EVENT_HOMEASSISTANT_STOP
+from homeassistant.core import SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.service import async_register_admin_service
 from homeassistant.helpers.storage import Store
@@ -30,6 +31,7 @@ from .schedule import ZERO, put
 from .timeline import build_timeline, frame_at, scene_markers, spans_for
 from .model_import import MAX_DEVICES, import_bindings, parse_source, validate_model
 from .const import ASSET_PATH, DOMAIN, VERSION
+from .learning_runtime import Learner
 
 LOG = logging.getLogger(__name__)
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Any(None, vol.Schema({
@@ -55,6 +57,7 @@ class Scheduler:
         self.playing = self.stopping = False
         self.task = self.last_clock = self.last_plan = self.event_cursor = self.last_scene = None
         self.errors = []
+        self.learning = Learner(self)
 
     @staticmethod
     def validate_catalog(devices):
@@ -141,6 +144,7 @@ class Scheduler:
         if self.data["profile"] not in {p["id"] for p in self.data["profiles"]}:
             self.data["profile"] = self.data["profiles"][0]["id"]
         self.data["hidden_devices"] = [e for e in self.data["hidden_devices"] if e in self.ids]
+        await self.learning.load()
 
     def profile(self, key=None):
         key = self.data["profile"] if key is None else key
@@ -178,12 +182,14 @@ class Scheduler:
         attrs = {**{k: v for k, v in self.data.items() if k not in ("minute", "fired_events", "device_memory")},
                  "version": VERSION, "energy": timeline["energy"],
                  "model_presets_url": self.model_presets_url,
+                 "learning": self.learning.status(),
                  "friendly_name": "Home scheduler"}
         if attrs != self.last_plan:
             self.hass.states.async_set("sensor.home_scheduler", "ready", attrs)
             self.last_plan = copy.deepcopy(attrs)
 
     async def apply(self, control=True, advance=False):
+        self.learning.sync()
         profile, day, minute = self.context()
         timeline = self.timeline(profile, day)
         virtual = frame_at(timeline, self.devices, minute, day)
@@ -650,6 +656,7 @@ class Scheduler:
         while not self.stopping:
             try:
                 async with self.lock:
+                    self.learning.tick()
                     if self.playing:
                         minute = self.data["minute"] + 5
                         if minute >= 1440:
@@ -677,6 +684,7 @@ class Scheduler:
             return
         async with self.lock:
             await self.apply()
+            self.learning.start()
         self.task = self.hass.async_create_background_task(self.run(), DOMAIN)
 
     async def stop(self, _event=None):
@@ -687,6 +695,7 @@ class Scheduler:
                 await self.task
             except asyncio.CancelledError:
                 pass
+        await self.learning.stop()
         await self.store.async_save(copy.deepcopy(self.data))
 
 
@@ -724,6 +733,9 @@ async def async_setup_entry(hass, entry):
     runtime["scheduler"] = scheduler
     async_register_admin_service(hass, DOMAIN, "command", scheduler.command,
         schema=vol.Schema({vol.Required("op"): str}, extra=vol.ALLOW_EXTRA))
+    async_register_admin_service(hass, DOMAIN, "learning", scheduler.learning.command,
+        schema=vol.Schema({vol.Required("op"): str}, extra=vol.ALLOW_EXTRA),
+        supports_response=SupportsResponse.OPTIONAL)
     module_url=ASSET_PATH+"home-scheduler-card.js?v="+VERSION
     frontend.add_extra_js_url(hass,module_url)
     runtime["module_url"]=module_url
@@ -743,6 +755,7 @@ async def async_unload_entry(hass, entry):
     if scheduler:
         await scheduler.stop()
     hass.services.async_remove(DOMAIN,"command")
+    hass.services.async_remove(DOMAIN,"learning")
     if url:=runtime.pop("module_url",None):
         frontend.remove_extra_js_url(hass,url)
     for entity in ("sensor.home_scheduler","sensor.home_scheduler_frame"):

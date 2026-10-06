@@ -45,6 +45,9 @@ class ConfigFlow:
 
 config_entries.ConfigFlow=ConfigFlow
 module("homeassistant.components")
+core = module("homeassistant.core")
+core.callback = lambda fn: fn
+core.SupportsResponse = types.SimpleNamespace(OPTIONAL="optional")
 frontend=module("homeassistant.components.frontend")
 frontend.add_extra_js_url=lambda hass,url:hass.modules.add(url)
 frontend.remove_extra_js_url=lambda hass,url:hass.modules.discard(url)
@@ -64,6 +67,15 @@ const.EVENT_HOMEASSISTANT_STARTED, const.EVENT_HOMEASSISTANT_STOP = "started", "
 exceptions = module("homeassistant.exceptions")
 exceptions.HomeAssistantError = type("HomeAssistantError", (Exception,), {})
 module("homeassistant.helpers")
+event = module("homeassistant.helpers.event")
+def track_state_change(hass, entities, listener):
+    listeners = getattr(hass, "state_listeners", None)
+    if listeners is None:
+        hass.state_listeners = listeners = []
+    token = (set(entities), listener)
+    listeners.append(token)
+    return lambda: listeners.remove(token) if token in listeners else None
+event.async_track_state_change_event = track_state_change
 service = module("homeassistant.helpers.service")
 service.async_register_admin_service = lambda hass,domain,name,handler,**kw: hass.services.registered.update({(domain,name):handler})
 storage = module("homeassistant.helpers.storage")
@@ -140,7 +152,11 @@ class Services:
 
 def hass_fixture():
     states = States()
-    return types.SimpleNamespace(states=states, services=Services(states))
+    import asyncio
+    async def executor(fn,*args): return fn(*args)
+    return types.SimpleNamespace(states=states, services=Services(states),
+                                async_add_executor_job=executor,
+                                async_create_background_task=lambda coro,name:asyncio.create_task(coro,name=name))
 
 
 def mask(start, end):

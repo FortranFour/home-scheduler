@@ -21,7 +21,7 @@ assert (COMPONENT/"config_flow.py").is_file()
 hacs=json.loads((ROOT/"hacs.json").read_text())
 assert hacs["render_readme"] and hacs["homeassistant"]=="2026.3.0"
 assert json.loads((COMPONENT/"strings.json").read_text())==json.loads((COMPONENT/"translations/en.json").read_text())
-for name in ("README.md","LICENSE","CHANGELOG.md","RELEASE_NOTES.md","PUBLISH_GIT_BASH.md"):
+for name in ("README.md","LICENSE","CHANGELOG.md","RELEASE_NOTES.md","PUBLISH_GIT_BASH.md","UPDATE_0_4_0.md"):
     assert (ROOT/name).is_file(),f"Missing release document: {name}"
 for name in ("icon.png","icon@2x.png","dark_icon.png","dark_icon@2x.png","logo.png","logo@2x.png","dark_logo.png","dark_logo@2x.png"):
     raw=(COMPONENT/"brand"/name).read_bytes()

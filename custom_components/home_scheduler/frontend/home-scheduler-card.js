@@ -1,7 +1,11 @@
-/* Home Scheduler & Simulator 0.3.0 — vanilla custom card, no build step. */
+/* Home Scheduler & Simulator 0.4.0 — vanilla custom card, no build step. */
 const HS_ESCAPE = value => String(value ?? "").replace(/[&<>"']/g, ch =>
   ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 const HS_BIT = (mask, slot) => !!(parseInt(mask[slot >> 2] || "0",16) & (8 >> (slot % 4)));
+const HS_PUT = (mask, slot, value) => {
+  const chars=mask.split(""), flag=8>>(slot%4), at=slot>>2, nibble=parseInt(chars[at],16);
+  chars[at]=(value?nibble|flag:nibble&~flag).toString(16);return chars.join("");
+};
 const HS_TIME = minutes => {
   const hour = Math.floor(minutes / 60), minute = minutes % 60;
   return (hour % 12 || 12) + ":" + String(minute).padStart(2,"0") + (hour < 12 ? " AM" : " PM");
@@ -18,7 +22,7 @@ class HomeSchedulerCard extends HTMLElement {
     this.disposed = false;
     this.renderJob = 0;
     this.sourceJob = 0;
-    this.modelChoices = [{id:"demo",name:"Demo home",kind:"demo",url:"/home_scheduler/demo-home.json?v=0.3.0"}];
+    this.modelChoices = [{id:"demo",name:"Demo home",kind:"demo",url:"/home_scheduler/demo-home.json?v=0.4.0"}];
   }
 
   setConfig(config) {
@@ -42,6 +46,7 @@ class HomeSchedulerCard extends HTMLElement {
     }
   }
   disconnectedCallback() {
+    this.leaveLearningPreview();
     this.disposed = true; clearTimeout(this.scrubTimer); clearTimeout(this.rendererTimer);
     this.renderJob++; this.finishPaint(false);
     this.sourceJob++;
@@ -99,9 +104,10 @@ class HomeSchedulerCard extends HTMLElement {
       String(hour).padStart(2,"0") + " / " + String(hour+12).padStart(2,"0") + " h</th>";
     for(let slot=0;slot<48;slot++) quarters += "<th>"+["00","15","30","45"][slot%4]+"</th>";
     const body = this.deviceRows();
-    this.shadowRoot.innerHTML = "<style>"+this.styles()+"</style><ha-card>"+
+    this.shadowRoot.innerHTML = "<style>"+this.styles()+this.learningStyles()+"</style><ha-card>"+
       "<div class='title'><img class='brand-icon' src='/home_scheduler/icon.svg' alt=''>Home Scheduler &amp; Simulator</div><div id='summary'><strong id='primary'></strong><div id='secondary'></div></div>"+
       "<div class='model-toolbar' id='model-toolbar'><label class='model-choice'>Model<select id='model-select' aria-label='Select home model'></select></label><button id='refresh-models'>Find models</button><button id='import-model-file'>Import configuration…</button><input id='model-file' type='file' accept='.json,.yaml,.yml,.txt' hidden><button id='toggle-editor' aria-controls='editor-pane'></button></div><div id='model-status' class='hint' role='status'>Selecting a model imports its devices and object bindings automatically. Use its floor3dx configuration; the GLB/OBJ file contains geometry only.</div>"+
+      "<div id='learn-preview-banner' role='status' hidden></div>"+
       "<div id='model-workspace'><section id='editor-pane' aria-label='House model editor'>"+
       "<div class='editor-heading'><strong>Model editor</strong><div class='editor-actions'>"+
       "<button id='save-model' disabled>Save model</button><button id='discard-model' disabled>Discard</button></div></div>"+
@@ -117,7 +123,7 @@ class HomeSchedulerCard extends HTMLElement {
       "<label class='check'><input id='repeat' type='checkbox'>Repeat preview</label></div>"+
       "<div class='edit-controls'><label>Schedule<select id='profile'></select></label>"+
       "<label>Preview date<input id='date' type='date'></label><div id='days'></div>"+
-      "<button id='copy'>Copy day to week</button><button id='clone'>Duplicate schedule</button></div>"+
+      "<button id='copy'>Copy day to week</button><button id='clone'>Duplicate schedule</button><button id='learn-open' aria-controls='learning-panel' aria-expanded='false'>Learn from actual use…</button></div>"+
       "<details><summary>Names, conditions & presence variation</summary><div class='advanced'>"+
       "<label>Name<input id='name' maxlength='100'></label>"+
       "<label>Activate when entity<input id='condition_entity' placeholder='input_select.scene'></label>"+
@@ -126,6 +132,7 @@ class HomeSchedulerCard extends HTMLElement {
       "<label class='check'><input id='auto' type='checkbox'>Conditional schedules</label>"+
       "<label>Variation ± minutes<input id='jitter' type='number' min='0' max='60' step='1'></label>"+
       "<button id='seed'>New variation</button></div></details>"+
+      this.learningHTML()+
       "<div class='type-filters' id='type-filters'></div><details id='device-manager'><summary>Devices, connections &amp; row visibility</summary><div id='device-list'></div><div class='add-device'><label>Type<select id='new-kind'><option value='light'>Light</option><option value='switch'>Switch</option><option value='fan'>Fan</option><option value='cover'>Cover</option><option value='scene'>Scene</option></select></label><label>Name<input id='new-name' maxlength='100' placeholder='My device'></label><label>Real entity (optional)<input id='new-target' list='hs-real-entities' placeholder='Leave blank for simulation'></label><button id='add-device'>Add device</button></div><div class='hint'>New devices appear in the grid; map them to an object using the model editor.</div></details><datalist id='hs-real-entities'></datalist><div id='visibility-hint' class='hint'></div><div class='hint'>Midnight–noon above, noon–midnight below. 1× = one simulated hour per second. A checked scene cell activates once at its start; other cells specify a 15-minute state.</div>"+
       "<div class='bulk-controls'><strong>Visible rows · <span id='bulk-day'></span></strong>"+
       "<button id='select-all'>Select all blocks</button><button id='clear-all'>Clear all</button>"+
@@ -155,6 +162,7 @@ class HomeSchedulerCard extends HTMLElement {
       catch(error) {this.modelStatus(error.message||String(error),true);}
     };
     this.buildDeviceManager();
+    this.bindLearning();
     this.updateEditorControls();
     byId("play").onclick=()=>this.send("play");
     for(const key of ["physical","clock","auto","repeat"])
@@ -248,6 +256,254 @@ class HomeSchedulerCard extends HTMLElement {
         input.dispatchEvent(new Event("change",{bubbles:true}));
       }
     });
+  }
+
+  learningHTML() {
+    return "<section id='learning-panel' hidden aria-label='Learn from actual use'>"+
+      "<div class='learning-heading'><strong>Learn from actual use</strong><button id='learn-close'>Close</button></div>"+
+      "<p class='hint'>Observe linked real devices, then review a weekly proposal. Lights are selected by default; switches and fans are optional. Each block needs at least three usable matching weekdays. Unknown blocks keep the existing schedule.</p>"+
+      "<div id='learn-scope' class='learn-scope'></div><div class='advanced'>"+
+      "<label class='check'><input id='learn-enabled' type='checkbox'>Observe actual use</label>"+
+      "<label>Household mode entity (optional)<input id='learn-mode-entity' placeholder='input_select.household_mode' maxlength='100'></label>"+
+      "<button id='learn-configure'>Save observation settings</button><button id='learn-history'>Read available Recorder history</button><button id='learn-clear'>Clear learning data</button></div>"+
+      "<div class='hint'>Observation pauses for a row while Home Scheduler physically controls it. Clear learning data pauses observation and leaves saved schedules unchanged.</div>"+
+      "<div id='learn-status' class='hint' role='status'></div><div class='advanced'>"+
+      "<label>Look back<select id='learn-lookback'><option value='28'>4 weeks</option><option value='42' selected>6 weeks</option><option value='56'>8 weeks</option></select></label>"+
+      "<label>Consensus %<input id='learn-threshold' type='number' min='50' max='100' value='60'></label>"+
+      "<label>Only household mode<input id='learn-mode-state' placeholder='All observed modes' maxlength='64'></label>"+
+      "<label class='check'><input id='learn-include-history' type='checkbox'>Include older activity with uncertain source</label>"+
+      "<button id='learn-propose'>Generate proposal</button></div>"+
+      "<div class='hint'>An ON vote means at least 7½ minutes on in a 15-minute block with at least 90% known coverage. Recorder backfill may include past scheduled activity; it is excluded unless you tick the box above.</div>"+
+      "<div id='learn-review' hidden><div id='learn-evidence-summary' class='hint'></div><div class='advanced'>"+
+      "<div id='learn-days'></div><button id='learn-preview'>Preview in model</button><button id='learn-play'>Play proposal</button><button id='learn-return'>Return to running view</button>"+
+      "<label>Proposal time<output id='learn-time'></output><input id='learn-scrubber' type='range' min='0' max='1425' step='15' value='1080'></label></div>"+
+      "<div class='hint'>Shade shows how often the block was ON. Gray = Still learning; existing blocks are retained. Hover or focus a box for counts. You can edit the proposal here. Preview stays virtual even with Physical devices enabled.</div>"+
+      "<div id='learn-grid'></div><div class='advanced'><label>New schedule name<input id='learn-name' maxlength='100' value='Learned routine'></label><button id='learn-save'>Save as new schedule</button></div>"+
+      "<div class='hint'>Saving keeps the running schedule selected. The new schedule has no automatic condition or activation scene; only the chosen devices are enabled. Select it later when ready to use it.</div></div>"+
+      "<div id='learn-message' role='status'></div></section>";
+  }
+
+  learningStyles() {
+    return "#learning-panel{padding:14px;margin:12px 0;border:1px solid var(--divider-color);border-radius:12px;background:var(--secondary-background-color)}"+
+      ".learning-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}.learn-scope{display:flex;flex-wrap:wrap;gap:8px 18px;margin:8px 0}"+
+      ".learn-scope .check{max-width:280px;align-items:center}#learn-threshold{width:75px}#learn-status,#learn-message{white-space:pre-line}#learn-message{font-size:13px;margin-top:8px}.learn-error{color:var(--error-color)}"+
+      "#learn-grid{overflow:auto;max-height:45vh;border:1px solid var(--divider-color);border-radius:8px;margin:8px 0}#learn-grid .label{width:220px}"+
+      "#learn-grid td{height:27px}#learn-grid td.learn-known{background:rgba(var(--rgb-primary-color,3,169,244),var(--frequency));box-shadow:inset 0 -2px rgba(var(--rgb-primary-color,3,169,244),.45)}"+
+      "#learn-grid td.learn-unknown{background:repeating-linear-gradient(135deg,transparent,transparent 4px,rgba(120,130,140,.14) 4px,rgba(120,130,140,.14) 7px)}"+
+      "#learn-grid input{cursor:pointer}#learn-days{display:flex;gap:4px;flex-wrap:wrap}#learn-days .selected{background:var(--primary-color);color:var(--text-primary-color,#fff)}"+
+      "#learn-preview-banner{background:rgba(var(--rgb-primary-color,3,169,244),.15);padding:9px;border-radius:8px;font-size:13px;margin:8px 0}";
+  }
+
+  bindLearning() {
+    const root=this.shadowRoot, by=id=>root.getElementById(id);
+    by("learn-open").onclick=()=>{
+      by("learning-panel").hidden=!by("learning-panel").hidden;
+      by("learn-open").setAttribute("aria-expanded",String(!by("learning-panel").hidden));
+      if(by("learning-panel").hidden) this.leaveLearningPreview();
+      else this.updateLearningStatus();
+    };
+    by("learn-close").onclick=()=>{by("learning-panel").hidden=true;by("learn-open").setAttribute("aria-expanded","false");this.leaveLearningPreview();};
+    by("learn-enabled").onchange=()=>this.learningAction(()=>this.configureLearning(by("learn-enabled").checked));
+    by("learn-configure").onclick=()=>this.learningAction(()=>this.configureLearning(by("learn-enabled").checked));
+    by("learn-clear").onclick=()=>this.learningAction(async()=>{
+      await this.learningAPI("clear");this.learningProposal=null;this.leaveLearningPreview();
+      by("learn-review").hidden=true;this.learnMessage("Learning data cleared. Saved schedules are unchanged.");
+    });
+    by("learn-history").onclick=()=>this.learningAction(async()=>{
+      await this.configureLearning(by("learn-enabled").checked);await this.learningAPI("history");
+      this.learnMessage("Backfill status appears above. Generate a proposal after it completes.");
+    });
+    by("learn-propose").onclick=()=>this.learningAction(async()=>{
+      this.leaveLearningPreview();
+      const result=await this.learningAPI("propose",{entities:this.learningSelection(),profile:this.plan.profile,
+        lookback:Number(by("learn-lookback").value),threshold:Number(by("learn-threshold").value),
+        include_history:by("learn-include-history").checked,mode_state:by("learn-mode-state").value});
+      this.learningProposal=result;this.learningDay=HS_DAY(result.date);this.learningMinute=1080;
+      this.learningMapping=JSON.stringify(this.plan.devices.map(d=>[d.entity,d.target,d.kind]));
+      by("learn-review").hidden=false;this.renderLearningReview();
+      this.learnMessage("Proposal ready. Review, edit and preview it, then save a new named schedule.");
+    });
+    by("learn-save").onclick=()=>this.learningAction(async()=>{
+      const result=await this.learningAPI("save",{...this.learningDraft(),name:by("learn-name").value});
+      this.leaveLearningPreview();this.learningProposal=null;by("learn-review").hidden=true;
+      this.learnMessage("Saved “"+result.name+"”. The running schedule is unchanged. Choose it from Schedule when ready.");
+    });
+    by("learn-grid").onchange=event=>{
+      const input=event.target, index=input.dataset.learnCell;
+      if(index===undefined || !this.learningProposal) return;
+      const entity=this.learningRows()[Number(index)].entity, row=this.learningProposal.profile.rows[entity];
+      row.days[this.learningDay]=HS_PUT(row.days[this.learningDay],Number(input.dataset.learnSlot),input.checked);
+      if(this.learningFrame) this.learningAction(()=>this.previewLearning());
+    };
+    by("learn-days").onclick=event=>{
+      const day=event.target.dataset.learnDay;
+      if(day===undefined) return;
+      this.learningDay=Number(day);this.renderLearningReview();
+      if(this.learningFrame) this.learningAction(()=>this.previewLearning());
+    };
+    by("learn-preview").onclick=()=>this.learningAction(()=>this.previewLearning());
+    by("learn-return").onclick=()=>this.leaveLearningPreview();
+    by("learn-play").onclick=()=>{
+      if(this.learningPlaying) {this.pauseLearning();return;}
+      this.learningPlaying=true;by("learn-play").textContent="Pause proposal";
+      const playJob=this.learningPlayJob=(this.learningPlayJob||0)+1;
+      const tick=async()=>{
+        if(!this.learningPlaying || this.disposed || playJob!==this.learningPlayJob) return;
+        try {await this.previewLearning();}
+        catch(error) {this.pauseLearning();this.learnMessage(error.message||String(error),true);return;}
+        if(this.learningPlaying && playJob===this.learningPlayJob) {
+          this.learningMinute=(this.learningMinute+15)%1440;
+          this.learningTimer=setTimeout(tick,250);
+        }
+      };
+      tick();
+    };
+    by("learn-scrubber").oninput=event=>{
+      this.pauseLearning();this.learningMinute=Number(event.target.value);
+      by("learn-time").textContent=HS_TIME(this.learningMinute);
+      clearTimeout(this.learningScrubTimer);
+      this.learningScrubTimer=setTimeout(()=>this.learningAction(()=>this.previewLearning()),120);
+    };
+  }
+
+  async learningAPI(op, values={}) {
+    const result=await this._hass.callWS({type:"call_service",domain:"home_scheduler",service:"learning",
+      service_data:{op,...values},return_response:true});
+    return result.response;
+  }
+
+  async learningAction(action) {
+    try {await action();}
+    catch(error) {this.learnMessage(error.message||String(error),true);this.updateLearningStatus();}
+  }
+
+  learnMessage(message, error=false) {
+    const element=this.shadowRoot.getElementById("learn-message");
+    if(element) {element.textContent=message;element.classList.toggle("learn-error",error);}
+  }
+
+  learningSelection() {
+    return Array.from(this.shadowRoot.querySelectorAll("[data-learn-select]:checked"),input=>input.dataset.learnSelect);
+  }
+
+  async configureLearning(enabled) {
+    await this.learningAPI("configure",{enabled,entities:this.learningSelection(),
+      mode_entity:this.shadowRoot.getElementById("learn-mode-entity").value});
+    this.learnMessage(enabled?"Observing actual use. Continue using your devices normally.":"Observation paused. Existing learning data is retained.");
+  }
+
+  updateLearningStatus() {
+    const root=this.shadowRoot, status=this.plan.learning||{}, scope=root.getElementById("learn-scope");
+    if(!scope) return;
+    if(this.learningProposal && this.learningMapping!==JSON.stringify(this.plan.devices.map(d=>[d.entity,d.target,d.kind]))) {
+      this.learningProposal=null;this.leaveLearningPreview();root.getElementById("learn-review").hidden=true;
+      this.learnMessage("Device connections changed; generate a new proposal.");
+    }
+    const devices=this.plan.devices.filter(d=>["light","switch","fan"].includes(d.kind));
+    const key=JSON.stringify(devices.map(d=>[d.entity,d.target,d.name]));
+    if(key!==this.learningScopeKey) {
+      const selected=this.learningScopeKey?this.learningSelection():status.entities||[];
+      scope.innerHTML=devices.map(d=>"<label class='check'><input type='checkbox' data-learn-select='"+HS_ESCAPE(d.entity)+"' "+
+        (!d.target?"disabled ":selected.includes(d.entity)||(!selected.length&&d.kind==="light")?"checked ":"")+">"+
+        HS_ESCAPE(d.name)+(d.target?"":" · connect a real entity")+"</label>").join("");
+      this.learningScopeKey=key;
+    }
+    root.getElementById("learn-enabled").checked=!!status.enabled;
+    const mode=root.getElementById("learn-mode-entity");
+    if(root.activeElement!==mode) mode.value=status.mode_entity||"";
+    const paused=(status.paused_targets||[]).length;
+    root.getElementById("learn-status").textContent=(status.enabled?"Observing":"Observation paused")+
+      (paused?" · "+paused+" device(s) excluded during physical control":"")+" · up to 8 weeks retained locally\n"+
+      (status.history_state==="reading"?"Reading history: "+status.history_progress+"%":status.history_message||"");
+    root.getElementById("learn-history").disabled=status.history_state==="reading";
+  }
+
+  learningRows() {
+    return this.plan.devices.filter(d=>this.learningProposal?.evidence[d.entity]);
+  }
+
+  learningDraft() {
+    if(!this.learningProposal) throw new Error("Generate a proposal first.");
+    return {proposal:this.learningProposal.proposal,days:Object.fromEntries(this.learningRows().map(d=>
+      [d.entity,this.learningProposal.profile.rows[d.entity].days]))};
+  }
+
+  renderLearningReview() {
+    const root=this.shadowRoot, proposal=this.learningProposal, day=this.learningDay;
+    if(!proposal) return;
+    const rows=this.learningRows();let heading="", quarters="", body="";
+    for(let hour=0;hour<12;hour++) heading+="<th colspan='4'>"+String(hour).padStart(2,"0")+" / "+String(hour+12).padStart(2,"0")+" h</th>";
+    for(let slot=0;slot<48;slot++) quarters+="<th>"+["00","15","30","45"][slot%4]+"</th>";
+    rows.forEach((d,index)=>{
+      const evidence=proposal.evidence[d.entity], row=proposal.profile.rows[d.entity];
+      for(let band=0;band<2;band++) {
+        body+="<tr>";
+        if(!band) body+="<th class='label' rowspan='2'>"+HS_ESCAPE(d.name)+"<div class='hint'>"+HS_ESCAPE(d.target)+"</div><span class='lamp' data-learn-lamp='"+index+"'>Preview</span></th>";
+        for(let col=0;col<48;col++) {
+          const slot=band*48+col, samples=parseInt(evidence.samples[day][slot],16),votes=parseInt(evidence.votes[day][slot],16);
+          const known=HS_BIT(evidence.known[day],slot),frequency=samples?votes/samples:0;
+          const label=d.name+" · "+HS_DAYS[day]+" "+HS_TIME(slot*15)+" · "+
+            (known?"On on "+votes+" of "+samples+" matching weekdays ("+Math.round(100*frequency)+"%).":"Still learning: "+samples+" usable sample(s); needs 3. Existing block retained.");
+          body+="<td class='"+(known?"learn-known":"learn-unknown")+"' style='--frequency:"+(frequency*.3).toFixed(2)+"' title='"+HS_ESCAPE(label)+"'>"+
+            "<input type='checkbox' data-learn-cell='"+index+"' data-learn-slot='"+slot+"' aria-label='"+HS_ESCAPE(label)+"' title='"+HS_ESCAPE(label)+"' "+(HS_BIT(row.days[day],slot)?"checked":"")+"></td>";
+        }
+        body+="</tr>";
+      }
+    });
+    root.getElementById("learn-grid").innerHTML="<table><thead><tr><th rowspan='2' class='label'>Proposal · "+HS_DAYS[day]+"</th>"+heading+"</tr><tr>"+quarters+"</tr></thead><tbody>"+body+"</tbody></table>";
+    root.getElementById("learn-days").innerHTML=HS_DAYS.map((label,i)=>"<button data-learn-day='"+i+"' class='"+(i===day?"selected":"")+"'>"+label+"</button>").join("");
+    const evidence=Object.values(proposal.evidence), usable=evidence.reduce((sum,x)=>sum+x.usable_cells,0);
+    root.getElementById("learn-evidence-summary").textContent=usable+" of "+(rows.length*7*96)+" weekly device blocks have consensus · "+
+      proposal.threshold+"% threshold · "+proposal.lookback/7+" weeks · based on “"+proposal.base_name+"”"+
+      (proposal.include_history?" · includes older activity with uncertain source":" · live observations only")+
+      (proposal.mode_state?" · household mode: "+proposal.mode_state:"")+"\n"+
+      evidence.reduce((sum,x)=>sum+x.brief_samples,0)+" usable samples contained activity below the 7½-minute vote; "+
+      evidence.reduce((sum,x)=>sum+x.excluded_samples,0)+" samples excluded during physical control.";
+    root.getElementById("learn-time").textContent=HS_TIME(this.learningMinute);
+    root.getElementById("learn-scrubber").value=this.learningMinute;
+    this.updateLearningIndicators();
+  }
+
+  async previewLearning() {
+    if(!this.learningProposal) return;
+    const job=this.learningPreviewJob=(this.learningPreviewJob||0)+1;
+    const date=new Date(this.learningProposal.date+"T12:00:00Z");
+    date.setUTCDate(date.getUTCDate()+this.learningDay-HS_DAY(this.learningProposal.date));
+    const frame=await this.learningAPI("preview",{...this.learningDraft(),date:date.toISOString().slice(0,10),minute:this.learningMinute});
+    if(job!==this.learningPreviewJob || this.disposed) return;
+    this.learningFrame=frame;
+    this.shadowRoot.getElementById("learn-scrubber").value=frame.minute;
+    this.shadowRoot.getElementById("learn-time").textContent=HS_TIME(frame.minute);
+    const banner=this.shadowRoot.getElementById("learn-preview-banner");
+    banner.hidden=false;banner.textContent="Learned proposal · virtual preview · "+HS_DAYS[this.learningDay]+" "+HS_TIME(frame.minute)+" · running schedule unchanged";
+    this.updateModel();
+    this.updateLearningIndicators();
+  }
+
+  updateLearningIndicators() {
+    this.learningRows().forEach((device,index)=>{
+      const badge=this.shadowRoot.querySelector("[data-learn-lamp='"+index+"']");
+      if(!badge) return;
+      const state=this.learningFrame?.states?.[device.entity]?.state;
+      badge.textContent=state==="on"?"On":state==="off"?"Off":"Preview";
+      badge.classList.toggle("on",state==="on");
+    });
+  }
+
+  pauseLearning() {
+    this.learningPlayJob=(this.learningPlayJob||0)+1;
+    this.learningPlaying=false;clearTimeout(this.learningTimer);
+    const button=this.shadowRoot.getElementById("learn-play");
+    if(button) button.textContent="Play proposal";
+  }
+
+  leaveLearningPreview() {
+    this.pauseLearning();clearTimeout(this.learningScrubTimer);
+    this.learningPreviewJob=(this.learningPreviewJob||0)+1;this.learningFrame=null;
+    const banner=this.shadowRoot.getElementById("learn-preview-banner");
+    if(banner) banner.hidden=true;
+    if(this.plan) this.updateLearningIndicators();
+    if(this.renderer && this._hass) this.updateModel();
   }
 
   visibleIndices() {
@@ -420,7 +676,7 @@ class HomeSchedulerCard extends HTMLElement {
     if(!profile) return;
     if(this.catalogKey!==JSON.stringify(p.devices.map(d=>[d.entity,d.kind,d.name]))) {
       this.finishPaint(false);
-      root.querySelector("tbody").innerHTML=this.deviceRows();
+      root.querySelector("#grid tbody").innerHTML=this.deviceRows();
       this.buildDeviceManager();
       this.lastSlot=null;
     }
@@ -465,6 +721,7 @@ class HomeSchedulerCard extends HTMLElement {
     root.getElementById("total").textContent=profile.name+" · "+HS_DAYS[day]+" · "+total.toFixed(3)+" kWh/day estimated"+
       (p.jitter && Object.values(p.random).some(Boolean) ? " · randomized rows include boundary variation" : "");
     root.getElementById("scrubber").disabled=!!p.clock;
+    this.updateLearningStatus();
     this.updateFrame();
   }
 
@@ -507,7 +764,7 @@ class HomeSchedulerCard extends HTMLElement {
     try {
       let source=this.plan.renderer||this.config.renderer;
       if(!source) {
-        const response=await fetch(this.config.renderer_url||"/home_scheduler/demo-home.json?v=0.3.0");
+        const response=await fetch(this.config.renderer_url||"/home_scheduler/demo-home.json?v=0.4.0");
         if(!response.ok) throw new Error("House configuration unavailable ("+response.status+"). Check the installed JSON file.");
         source=await response.json();
       }
@@ -565,7 +822,7 @@ class HomeSchedulerCard extends HTMLElement {
     });
     const query=message=>this._hass.callWS?this._hass.callWS(message):this._hass.connection?.sendMessagePromise(message);
     const reads=await Promise.allSettled([
-      bounded(Promise.all(["/home_scheduler/models.json?v=0.3.0",this.plan.model_presets_url].filter(Boolean).map(url=>
+      bounded(Promise.all(["/home_scheduler/models.json?v=0.4.0",this.plan.model_presets_url].filter(Boolean).map(url=>
         fetch(url,{cache:"no-store"}).then(async response=>response.ok?response.json():null))).then(indices=>({models:indices.flatMap(x=>Array.isArray(x?.models)?x.models:[])}))),
       bounded(Promise.resolve().then(()=>query({type:"lovelace/dashboards/list"})))
     ]);
@@ -645,7 +902,7 @@ class HomeSchedulerCard extends HTMLElement {
       const report=this.plan.last_import;
       this.modelStatus((this.plan.renderer_revision>revision&&report)?
         report.name+" · "+report.devices+" device rows populated"+(report.readonly?" · "+report.readonly+" read-only bindings retained":"")+
-        (report.schedule_rows_copied?" · existing schedules copied":"")+" · Physical devices off":"Model selected · device rows will appear automatically · Physical devices off");
+        (report.schedule_rows_copied?" · existing schedules copied":"")+" · Physical control reset on import":"Model selected · device rows will appear automatically · Physical control reset on import");
     } catch(error) {
       this.modelSelected=null;this.modelStatus(error.message||String(error),true);
     } finally {
@@ -830,7 +1087,7 @@ class HomeSchedulerCard extends HTMLElement {
   }
 
   modelStates() {
-    const f=this.frame;
+    const f=this.learningFrame||this.frame;
     if(!f) return {...this._hass.states};
     // Keep the outgoing model's virtual states until its replacement mounts.
     // HA can deliver the new frame before the catalog/configuration update.

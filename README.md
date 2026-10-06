@@ -2,11 +2,15 @@
 
 Plan lights, switches and plugs, fans, blinds, curtains, other covers, and scene activations in a weekly quarter-hour grid. Play a day in an original fictional 3D home, select your own configured house model, or watch the simulated device indicators without 3D. Connect real devices when you want the same schedules to operate your home.
 
-Version **0.3.0** · Home Assistant custom integration · MIT license
+Version **0.4.0** · Home Assistant custom integration · MIT license
+
+New in 0.4.0: **Learn from actual use** observes linked lights, switches/plugs and fans, proposes a weekly routine from matching weekdays, and lets you review and play it in the model before saving a new schedule.
 
 ![Fictional demo home at night](previews/demo-night.png)
 
 The scheduler card, demo model, and cyan house branding are included. The 3D renderer and its visual editor come from **[FortranFour/floor3dx-card](https://github.com/FortranFour/floor3dx-card)**, installed separately. Thermostats are not scheduled.
+
+The model adapter is designed for the floor3d family of cards, but **only floor3dx-card 1.4.0 has been tested**. The adapter accepts `custom:floor3dx-card` and `custom:floor3d-card` configurations; renderer-specific features and visual editors in other variants may differ.
 
 - [Install through HACS](#install-through-hacs)
 - [Manual installation](#manual-installation)
@@ -19,6 +23,7 @@ The scheduler card, demo model, and cyan house branding are included. The 3D ren
 - [Use the visual model editor](#use-the-visual-model-editor)
 - [Schedules, conditions, and presence variation](#schedules-conditions-and-presence-variation)
 - [Scenes](#scenes)
+- [Learn from actual use](#learn-from-actual-use)
 - [Storage, updates, and removal](#storage-updates-and-removal)
 - [Troubleshooting](#troubleshooting)
 - [Development and publishing](#development-and-publishing)
@@ -67,7 +72,7 @@ For a terminal installation with the optional demo mode helper and Recorder excl
 sh /config/home-scheduler/install.sh /config
 ```
 
-The helper copies the integration and `packages/home_scheduler.yaml`. It also copies compatible assets to `www/home-scheduler/` for older installations and preserves a separate personal preset if present. It never edits `configuration.yaml`.
+The helper copies the integration and installs `packages/home_scheduler.yaml` only when that file does not already exist. An existing package, including your helpers and restart automations, is retained. It also copies compatible assets to `www/home-scheduler/` for older installations and preserves a separate personal preset if present. It never edits `configuration.yaml`.
 
 To load that optional package, add `packages:` under your existing `homeassistant:` block:
 
@@ -296,6 +301,56 @@ Timed **real scenes require both Physical devices and Follow clock**. Scrubbing 
 
 A real scene can affect devices outside the grid. Enabled linked rows continue enforcing their own configured periods on subsequent updates. Disable a row if a scene should own it, as the demo does for the accent lamp. A disabled mapped row can still display its actual state.
 
+## Learn from actual use
+
+This opt-in feature turns observed activity into a **proposed** weekly schedule. It does not replace your existing schedules or activate the proposal automatically. The initial learning release supports **lights, switches/plugs, and fans**, using their on/off state. It does not learn brightness, color, fan speed, cover positions, or scene activations. Your chosen row settings supply brightness/color/speed when you use the learned schedule. Thermostats remain excluded.
+
+![Learned proposal in the model and review grid](previews/learn-actual-use.png)
+
+### Observe and propose
+
+1. Connect the rows to their **real entity** under **Settings & connection**. Unlinked demo devices can simulate schedules but cannot supply actual-use history.
+2. Open **Learn from actual use…** beside **Duplicate schedule**. Linked lights are selected by default; optionally select switches and fans, or deselect individual lights. Row visibility does not restrict learning.
+3. Optionally enter a discrete **Household mode entity**, such as `input_select.household_mode`, `input_boolean.guests`, `person.someone`, or an occupancy `binary_sensor`. Save this setting before collecting data. Use a helper that represents real household activity, rather than the demo mode selector unless you actually maintain its state.
+4. Enable **Observe actual use**. The observer watches real connections even while the card is closed. It resumes after an HA restart if it was enabled. **Save observation settings** applies changes to the chosen rows or mode helper. Turn the checkbox off to pause while keeping accumulated data.
+5. Optionally select **Read available Recorder history**. It reads only the selected devices and optional mode helper in daily chunks in the background. The status shows progress and completion. Recorder is optional; live learning works without it. Available backfill is limited by your existing retention and exclusions; the integration does not change Recorder settings or require a longer global retention period. Backfill is a warm start for time **before observation first began for each real target**; later pauses/downtime stay unknown, avoiding duplicate samples or relearning controlled periods. To discard an old collection and warm-start again, clear learning data first.
+6. Choose **4, 6, or 8 weeks**, a **Consensus %** (default 60%), and optionally **Only household mode**, such as `Home` or `Guest`. Leave that field blank to use all observed modes. Generate a proposal based on the currently selected schedule.
+
+Backfilled activity has **uncertain source**: it can contain activity from previous Home Scheduler/Lighting Scheduler versions, other automations, or manual use. The initial setting excludes it from consensus. Tick **Include older activity with uncertain source** only if that history is appropriate for the routine you want to learn. Live observations can also include other automations; this feature measures observed usage, not proof of manual operation.
+
+### What counts as consensus
+
+| Rule | Behavior |
+| --- | --- |
+| One vote per usable date | Counts duration in the block, not the number of state-change events |
+| ON vote | At least **450 seconds** ON in the 900-second block |
+| Known coverage | At least **810 seconds** (90%) of the block must have a known on/off state |
+| Matching weekdays | Mondays are compared with Mondays, Tuesdays with Tuesdays, and so on, in HA's local time zone |
+| Minimum evidence | At least **three usable occurrences** of that weekday and block |
+| Consensus threshold | At least the selected percentage of usable dates must vote ON; 60% is the default |
+| Still learning | Fewer than three usable dates: keeps the existing block rather than interpreting missing data as OFF |
+| Known OFF recommendation | Enough usable dates, but ON frequency is below the threshold |
+
+For example, if a lamp was on for at least 7½ minutes in the 6:00–6:15 PM block on five of six usable Mondays, its frequency is 83% and the default proposal checks that Monday block. At two usable Mondays the cell remains **Still learning**, even if both were ON.
+
+Unknown/unavailable states, restored states, process stalls, incomplete coverage and unfinished blocks do not count as OFF. Backfill uses only explicitly recorded states, carries them forward within a clean Recorder run, and does not bridge HA shutdown gaps. It conservatively omits unclean runs and prefixes without a known initial state. Repeated DST clock times are omitted; nonexistent spring-forward cells have no sample. Changing HA's time zone resets learning data to avoid mixing incompatible local weekdays/times.
+
+Any block that overlaps **Home Scheduler physical control** is excluded for that device—even if the device never changes state. Other rows can continue learning. When a real activation scene or scheduled scene could indirectly control learned devices, the observer conservatively excludes them during that physical clock schedule. This prevents Home Scheduler from learning its own commanded routine. It cannot retrospectively prove the source of older Recorder activity.
+
+The summary also counts observed blocks with activity below the 7½-minute vote. Brief usage may be unsuitable for a 15-minute schedule; review those routines manually rather than assuming that every real activation becomes a checked block.
+
+### Review, simulate and save
+
+1. Select a weekday in the **proposal** panel. Frequency shading shows how often each block was ON; gray hatching means **Still learning**. Hover or focus a box for its ON count and sample count. Edit any proposal checkbox, including an unknown block if you deliberately want to override the retained value.
+2. Select **Preview in model**, scrub **Proposal time**, or choose **Play proposal**. Proposal playback uses the proposal's day and a separate player. The 3D model and proposal row On/Off indicators update; the running schedule, its clock and actual devices continue independently. This preview stays virtual even with **Physical devices** enabled. Presence jitter is suppressed so you see the proposed block boundaries.
+3. **Return to running view** restores the normal model view. Closing the panel or removing the card also ends its local preview.
+4. Enter a unique name and select **Save as new schedule**. It creates a new profile without selecting it, without an automatic condition or activation scene, and with only the chosen devices enabled. Unknown blocks retain the base schedule unless you edited them yourself. No existing schedule is overwritten.
+5. Select the new schedule from **Schedule** when ready to use it. Preview it with normal scheduler controls, set any conditions/presence variation you want, then use the physical/clock master controls as usual. Selecting a schedule while Physical devices is on uses the normal real-operation behavior, so finish review in the proposal panel first.
+
+Each card keeps its proposal and playback independently. Generate again if device mappings change. Proposals expire after two hours and are not restored after a browser reload or HA restart; saved schedules remain. There are at most four server-side review drafts and twelve saved schedules.
+
+**Clear learning data** pauses the observer and deletes observations and proposals. It leaves saved schedules and their real-device settings unchanged. Clear first if you need to change the household mode helper after data has been collected. Remapping a row starts observation for its new real target; learning data is keyed by real target, so old data is not silently attributed to a different device.
+
 ## Storage, updates, and removal
 
 Settings, device connections, profiles, visibility, saved model configuration, and model catalogs are stored under Home Assistant's **`.storage/home_scheduler`** key. Model selection archives/restores each model's device catalog and schedule rows. The geometry bytes stay at their existing URLs; this storage contains configuration, not copied model files.
@@ -310,7 +365,9 @@ recorder:
       - sensor.home_scheduler_frame
 ```
 
-Do not create a second top-level `recorder:` block. HACS updates replace integration files, while saved settings and private `/local/` models remain in your HA configuration. Restart after an update and reload the dashboard. The manual installer backs up replaced component, compatibility assets, and package files under `home_scheduler_backups/`.
+Do not create a second top-level `recorder:` block. Learning data lives separately in `.storage/home_scheduler_learning`; keep it alongside `.storage/home_scheduler` in backups. It retains eight rolling weeks (up to 56 full days plus the current partial date), stored as compressed daily duration totals rather than raw event logs. Checkpoints run every five minutes and on settings changes, backfill completion and clean shutdown. A sudden failure may lose the last few minutes of observations; that period is not inferred after restart. Raw observations and proposal grids are not published in scheduler sensor attributes or written to Recorder by this feature.
+
+HACS updates replace integration files, while saved settings and private `/local/` models remain in your HA configuration. Restart after an update and reload the dashboard. The manual installer backs up component, compatibility assets, and package files under `home_scheduler_backups/`, and preserves an existing package instead of replacing custom helpers or automations. See [UPDATE_0_4_0.md](UPDATE_0_4_0.md) for testing this package and updating your existing Git Bash checkout.
 
 To stop scheduling, disable/remove the integration entry. This stops its loop and leaves real devices at their current state. If `home_scheduler:` is still loaded through YAML, remove it before deleting the entry or it will be imported again. Remove the dashboard card and uninstall the integration through HACS or delete its component folder, then restart. Delete `.storage/home_scheduler` with HA stopped only if intentionally discarding saved settings. An independent old `lighting_scheduler` installation is unaffected.
 
@@ -330,6 +387,11 @@ To stop scheduling, disable/remove the integration entry. This stops its loop an
 | Guest/Worker/Away never selects | Enable conditional mode and Follow clock, and create/change the condition helper |
 | Integration icon missing | Use HA 2026.3+, confirm the `brand` folder was copied, restart and reload |
 | Model-save revision conflict | Discard/reload to see the newer saved model before applying your edit again |
+| Learning rows disabled in the selector | Connect a supported row to a real light, switch or fan entity |
+| Every proposal cell says Still learning | Enable observation; wait for three usable matching weekdays, or read suitable Recorder history and explicitly include older activity |
+| Few usable samples during physical scheduling | Own-control intervals are intentionally excluded; learn while those rows are not controlled by Home Scheduler |
+| Backfill completes with little or no data | Check Recorder exclusions/retention; unclean runs, missing initial states and unknown states are conservatively omitted |
+| Household mode helper cannot be changed | Clear learning data first, then save the new mode entity and restart observation |
 
 For debug logs, merge this into your existing logger configuration:
 
@@ -355,6 +417,6 @@ Report reproducible issues using the fictional demo when possible. Remove person
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for local tests and [PUBLISH_GIT_BASH.md](PUBLISH_GIT_BASH.md) for repository/tag/release commands. The HACS runtime is entirely inside the component folder; consumers do not need the build tools or tests.
 
-This early public release was checked with backend/lifecycle/installation tests and an integrated browser run using the actual scheduler, demo GLB, and floor3dx 1.4.0 renderer. Home Assistant service/storage APIs and native form widgets were test doubles. A real HA restart and hardware-specific behavior should be checked on the installation where physical scheduling will be used. The supplied GitHub validators run after publication; local checks do not claim official HACS catalog acceptance.
+This release was checked with backend/lifecycle/installation/learning tests and an integrated browser run using the actual scheduler, demo GLB, and floor3dx 1.4.0 renderer. Learning checks cover elapsed-time voting, missing coverage, weekday consensus, mode history, DST, own-control exclusions, rolling retention, compressed persistence, restarts/remapping, repeated backfills and review/save isolation. The browser check plays a learned proposal with the physical runner armed and verifies that its profile, frame and real entity states stay unchanged. Home Assistant service/storage/Recorder APIs and native form widgets were test doubles. A real HA Recorder database, restart and hardware-specific behavior still need verification on your installation. The supplied GitHub validators run after publication; local checks do not claim official HACS catalog acceptance.
 
 Original code and demo/branding assets use [MIT](LICENSE). Home Assistant, HACS, and floor3dx remain separate projects under their own licenses. Thanks to the floor3dx project and its original floor3d-card lineage for the renderer/editor foundation.

@@ -63,6 +63,12 @@ const address=new Promise((resolve,reject)=>{let buffer='';server.stdout.on('dat
      } finally {pending--;}
     },callWS:async message=>{
       (window.wsQueries??=[]).push(message);
+      if(message.type==='call_service'&&message.domain==='home_scheduler'&&message.service==='learning') {
+        const response=await fetch('/api/learning',{method:'POST',body:JSON.stringify(message.service_data)}),result=await response.json();
+        if(!response.ok)throw new Error(result.error);
+        realHass.states=result.states;window.backendCalls=result.calls;card.hass={...realHass};
+        return {response:result.response};
+      }
       if(message.type==='lovelace/dashboards/list')return [{url_path:'dashboard-house',title:'House dashboard'}];
       if(message.type==='lovelace/config')return {views:[{cards:message.url_path==='dashboard-house'?[imported]:[]}]};
       return [];
@@ -236,9 +242,54 @@ const address=new Promise((resolve,reject)=>{let buffer='';server.stdout.on('dat
   await q('#model-select').selectOption('demo');await waitFor(()=>!card.modelImporting&&card.plan.devices.length===16&&card.renderer._modelready);
   assert.deepEqual(await visible(),Array(6).fill('light'));
   assert.equal(await page.evaluate(()=>card.plan.profiles[0].rows['light.hs_demo_living'].days[0]==='0'.repeat(24)),false,'Switching to demo restores its schedule');
-  assert.ok(await page.evaluate(()=>wsQueries.every(x=>['lovelace/config','lovelace/dashboards/list'].includes(x.type))));
+  assert.ok(await page.evaluate(()=>wsQueries.every(x=>['lovelace/config','lovelace/dashboards/list','call_service'].includes(x.type))));
   assert.equal(await page.evaluate(()=>deviceCalls),0);
   assert.equal(await page.evaluate(()=>backendCalls.length),0);
+  // Learn proposals have their own player, even while the physical runner is armed.
+  await page.evaluate(async()=>{
+    const value=await(await fetch('/api/learning-fixture',{method:'POST',body:JSON.stringify({arm:true})})).json();
+    realHass.states=value.states;card.hass={...realHass};
+    window.learningRunnerBefore={profile:card.plan.profile,frame:structuredClone(card.frame),physical:card.plan.physical,clock:card.plan.clock};
+  });
+  await q('#learn-open').click();
+  assert.equal(await q('[data-learn-select]:checked').count(),6,'Linked lights default selected');
+  assert.equal(await q('[data-learn-select="fan.hs_demo_ceiling"]').isChecked(),false);
+  assert.equal(await q('#learn-include-history').isChecked(),false);
+  await q('#learn-propose').click();await waitFor(()=>!!card.learningProposal);
+  const cell=q('[data-learn-cell="0"][data-learn-slot="72"]');
+  assert.ok((await cell.getAttribute('title')).includes('On on 5 of 6'));
+  assert.equal(await cell.isChecked(),true);
+  await q('#learn-preview').click();await waitFor(()=>card.learningFrame?.minute===1080&&card.renderer._scene.getObjectByName('LivingLamp_light').intensity>0);
+  assert.equal(await page.evaluate(()=>card.plan.profile===learningRunnerBefore.profile&&card.plan.physical&&card.plan.clock),true);
+  assert.equal(await page.evaluate(()=>JSON.stringify(card.frame)===JSON.stringify(learningRunnerBefore.frame)),true,'Preview does not publish or replace runner frame');
+  assert.equal(await page.evaluate(()=>realHass.states['light.fixture_observed_0'].state),'off');
+  assert.equal(await q('[data-learn-lamp="0"]').textContent(),'On');
+  await q('#learn-play').click();await waitFor(()=>card.learningFrame.minute>=1110);
+  await q('#learn-play').click();
+  assert.equal(await page.evaluate(()=>card.learningPlaying),false);
+  await q('#learn-scrubber').fill('120');await waitFor(()=>card.learningFrame.minute===120&&card.renderer._scene.getObjectByName('LivingLamp_light').intensity===0);
+  assert.equal(await q('[data-learn-lamp="0"]').textContent(),'Off');
+  await q('[data-learn-day="1"]').click();await waitFor(()=>card.learningDay===1);
+  assert.ok((await q('[data-learn-cell="0"][data-learn-slot="72"]').getAttribute('title')).includes('Still learning: 2'));
+  assert.equal(await q('[data-learn-cell="0"][data-learn-slot="72"]').isChecked(),true,'Unknown retains existing checked block');
+  await q('[data-learn-day="0"]').click();
+  await q('[data-learn-cell="0"][data-learn-slot="73"]').uncheck();
+  await q('#learn-name').fill('Observed evening');
+  if(!(await q('#editor-pane').isVisible())) {await q('#toggle-editor').click();await waitFor(()=>card.editor?._mode==='ready');}
+  await q('#learn-scrubber').fill('1080');await waitFor(()=>card.learningFrame.minute===1080);
+  await page.evaluate(()=>{window.scrollTo(0,0);card.shadowRoot.getElementById('learn-grid').scrollLeft=0;});
+  await page.screenshot({path:path.join(root,'previews/learn-actual-use.png'),fullPage:true});
+  await page.setViewportSize({width:390,height:844});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth===innerWidth),true,'Learning review stays within phone width');
+  await page.setViewportSize({width:1440,height:1150});
+  await q('#learn-save').click();await waitFor(()=>card.plan.profiles.some(p=>p.name==='Observed evening'));
+  assert.equal(await page.evaluate(()=>card.plan.profile===learningRunnerBefore.profile&&card.plan.physical&&card.plan.clock),true);
+  assert.equal(await page.evaluate(()=>card.plan.profiles.find(p=>p.name==='Observed evening').rows['light.hs_demo_living'].days[0][18]),'b','Edited proposal was saved');
+  assert.equal(await q('#learn-review').isVisible(),false);
+  assert.equal(await page.evaluate(()=>card.learningFrame),null);
+  assert.equal(await page.evaluate(()=>backendCalls.length),0);
+  await q('#learn-close').click();
+  await page.evaluate(async()=>{const value=await(await fetch('/api/reset',{method:'POST',body:'{}'})).json();realHass.states=value.states;card.hass={...realHass};});
   // A grid-only installation works without floor3dx or HA card helpers.
   await page.evaluate(()=>{
     window.gridHelperCalls=0;
@@ -263,6 +314,9 @@ const address=new Promise((resolve,reject)=>{let buffer='';server.stdout.on('dat
     window.loadCardHelpers=()=>new Promise(resolve=>{window.finishModelHelpers=resolve;});
     card.remove();card=document.createElement('home-scheduler-card');document.body.append(card);
     card.setConfig({model_editor:false});card.hass=realHass;
+  });
+  await waitFor(()=>typeof window.finishModelHelpers==='function');
+  await page.evaluate(()=>{
     card.setConfig({show_model:false});
     finishModelHelpers({createCardElement:()=>{pendingMounts++;throw new Error('Canceled renderer mounted');}});
   });
@@ -271,7 +325,7 @@ const address=new Promise((resolve,reject)=>{let buffer='';server.stdout.on('dat
   assert.equal(await q('#model-workspace').isVisible(),false);
   assert.deepEqual(errors,[]);
   assert.deepEqual(logs.filter(x=>x.includes('not found in Home Assistant')),[],'Model switching always supplies the outgoing and incoming preview entities');
-  console.log('UI checks passed: real backend + floor3dx 1.4 GLB; filters, bulk/drag/keyboard selection, scenes, fan/cover motion, editor save, mobile layout; dashboard model discovery, automatic JSON/YAML import, aliases, legacy schedules, camera retention, reload/model switching, invalid-import preservation, grid-only simulation and canceled renderer loading, no physical service calls.');
+  console.log('UI checks passed: real backend + floor3dx 1.4 GLB; grid editing, scenes, fan/cover motion, native editor, model imports, mobile layout; learned consensus/counts/unknown cells, isolated animated 3D and On/Off preview while runner armed, edited proposal saved without changing runner or real states; grid-only simulation and canceled renderer loading; no physical service calls.');
   console.log('Renderer diagnostics:',JSON.stringify(logs));
  } finally {await browser.close();server.kill();}
 })().catch(error=>{server.kill();console.error(error);process.exitCode=1;});

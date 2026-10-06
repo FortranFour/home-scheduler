@@ -34,7 +34,11 @@ for asset_file in "$source_dir/custom_components/home_scheduler/frontend/"*; do
   if [ "${asset_file##*/}" = models.json ] && [ "$had_model_index" -eq 1 ]; then continue; fi
   cp -R "$asset_file" "$frontend_dir/"
 done
-cp "$source_dir/packages/home_scheduler.yaml" "$package_file"
+if [ ! -e "$package_file" ]; then
+  cp "$source_dir/packages/home_scheduler.yaml" "$package_file"
+else
+  printf '%s\n' "Existing packages/home_scheduler.yaml retained, including your helpers and startup automations."
+fi
 # A personal preset stays separate from the distributable demo package.
 for preset_file in "$config_dir/home_scheduler_my_house.json" "$source_dir/home_scheduler_my_house.json"; do
   if [ -f "$preset_file" ]; then
@@ -49,7 +53,7 @@ if [ -f "$frontend_dir/my-house.json" ] && [ "$had_model_index" -eq 1 ]; then
   printf '%s\n' "Existing model index retained; import any additional personal preset through Import configuration."
 fi
 printf '%s\n' \
-  "Installed Home Scheduler & Simulator 0.3.0." \
+  "Installed Home Scheduler & Simulator 0.4.0." \
   "Use your existing packages: include; configuration.yaml was not changed." \
   "With packages enabled, YAML setup imports the integration entry automatically." \
   "Check configuration, restart Home Assistant, then add home_scheduler_view.yaml as a new dashboard view." \

@@ -10,6 +10,20 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class InstallerTests(unittest.TestCase):
+    def test_upgrade_preserves_custom_package_and_learning_store(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config=Path(directory)
+            (config/"configuration.yaml").write_text("homeassistant:\n")
+            package=config/"packages/home_scheduler.yaml"
+            package.parent.mkdir()
+            package.write_text("home_scheduler:\nautomation:\n  - alias: Resume my schedules\n    mode: single\n")
+            store=config/".storage/home_scheduler_learning"
+            store.parent.mkdir()
+            store.write_text('{"observations":"private fixture"}')
+            prior=(package.read_bytes(),store.read_bytes())
+            subprocess.run(["sh",str(ROOT/"install.sh"),str(config)],check=True,capture_output=True)
+            self.assertEqual((package.read_bytes(),store.read_bytes()),prior)
+
     def test_install_and_reinstall_preserve_unrelated_files_and_storage(self):
         with tempfile.TemporaryDirectory() as directory:
             config = Path(directory) / "config with spaces"
