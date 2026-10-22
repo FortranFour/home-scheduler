@@ -53,7 +53,7 @@ if [ -f "$frontend_dir/my-house.json" ] && [ "$had_model_index" -eq 1 ]; then
   printf '%s\n' "Existing model index retained; import any additional personal preset through Import configuration."
 fi
 printf '%s\n' \
-  "Installed Home Scheduler & Simulator 0.4.0." \
+  "Installed Home Scheduler & Simulator 0.4.1." \
   "Use your existing packages: include; configuration.yaml was not changed." \
   "With packages enabled, YAML setup imports the integration entry automatically." \
   "Check configuration, restart Home Assistant, then add home_scheduler_view.yaml as a new dashboard view." \
