@@ -1,4 +1,4 @@
-# Install Home Scheduler & Simulator 0.4.0
+# Install Home Scheduler & Simulator 0.4.1
 
 Requires Home Assistant 2026.3+. The fictional demo is unlinked from real devices. For the 3D view/editor, install [FortranFour/floor3dx-card](https://github.com/FortranFour/floor3dx-card) 1.4.0+ separately.
 

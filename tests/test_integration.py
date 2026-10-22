@@ -46,7 +46,7 @@ class IntegrationTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(hass.flows,[])
             self.assertTrue(await target.async_setup_entry(hass,entry))
             scheduler=hass.data[target.DOMAIN]["scheduler"]
-            self.assertIn("/home_scheduler/home-scheduler-card.js?v=0.4.0",hass.modules)
+            self.assertIn("/home_scheduler/home-scheduler-card.js?v=0.4.1",hass.modules)
             self.assertEqual(hass.paths[0].url_path,"/home_scheduler")
             self.assertTrue((Path(hass.paths[0].path)/"demo-home.glb").is_file())
             self.assertIn((target.DOMAIN,"command"),hass.services.registered)

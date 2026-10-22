@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1
+
+- Checked with floor3dx-card 2.3.0 (three.js r186): the integrated browser test passes unchanged against the new renderer. README section on what floor3dx-card 2.x means for an imported model.
+- The embedded model always runs with floor3dx-card's `merge_static` off, so the visual model editor's object picker reaches every object; the other 2.x options pass through the import as configured.
+- Version 0.4.1 in the integration, card and demo URLs (cache-busting).
+
 ## 0.4.0
 
 - Add opt-in learning for linked lights, switches/plugs and fans from actual on/off duration.

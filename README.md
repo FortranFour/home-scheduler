@@ -2,15 +2,15 @@
 
 Plan lights, switches and plugs, fans, blinds, curtains, other covers, and scene activations in a weekly quarter-hour grid. Play a day in an original fictional 3D home, select your own configured house model, or watch the simulated device indicators without 3D. Connect real devices when you want the same schedules to operate your home.
 
-Version **0.4.0** · Home Assistant custom integration · MIT license
+Version **0.4.1** · Home Assistant custom integration · MIT license
 
-New in 0.4.0: **Learn from actual use** observes linked lights, switches/plugs and fans, proposes a weekly routine from matching weekdays, and lets you review and play it in the model before saving a new schedule.
+New in 0.4.1: works with **floor3dx-card 2.x** (three.js r186); see [floor3dx-card 2.x](#floor3dx-card-2x). 0.4.0 added **Learn from actual use**, which observes linked lights, switches/plugs and fans, proposes a weekly routine from matching weekdays, and lets you review and play it in the model before saving a new schedule.
 
 ![Fictional demo home at night](previews/demo-night.png)
 
 The scheduler card, demo model, and cyan house branding are included. The 3D renderer and its visual editor come from **[FortranFour/floor3dx-card](https://github.com/FortranFour/floor3dx-card)**, installed separately. Thermostats are not scheduled.
 
-The model adapter is designed for the floor3d family of cards, but **only floor3dx-card 1.4.0 has been tested**. The adapter accepts `custom:floor3dx-card` and `custom:floor3d-card` configurations; renderer-specific features and visual editors in other variants may differ.
+The model adapter is designed for the floor3d family of cards and has been tested with **floor3dx-card 1.4.0 and 2.3.0**. The adapter accepts `custom:floor3dx-card` and `custom:floor3d-card` configurations; renderer-specific features and visual editors in other variants may differ.
 
 - [Install through HACS](#install-through-hacs)
 - [Manual installation](#manual-installation)
@@ -35,7 +35,7 @@ The model adapter is designed for the floor3d family of cards, but **only floor3
 | Home Assistant **2026.3.0 or later** | Integration, scheduling, and local integration branding |
 | An administrator account | Installation and scheduler commands |
 | HACS, or access to `/config/custom_components` | Installation |
-| floor3dx-card **1.4.0 or later** | Optional 3D view and native visual editor |
+| floor3dx-card **1.4.0 or later** (2.3.0 tested) | Optional 3D view and native visual editor |
 | A browser with WebGL | Optional 3D rendering |
 
 Home Assistant is required even for simulation. The demo has no real device targets. A card with `show_model: false` uses the schedule grid and changing state indicators without loading floor3dx.
@@ -370,6 +370,16 @@ Do not create a second top-level `recorder:` block. Learning data lives separate
 HACS updates replace integration files, while saved settings and private `/local/` models remain in your HA configuration. Restart after an update and reload the dashboard. The manual installer backs up component, compatibility assets, and package files under `home_scheduler_backups/`, and preserves an existing package instead of replacing custom helpers or automations. See [UPDATE_0_4_0.md](UPDATE_0_4_0.md) for testing this package and updating your existing Git Bash checkout.
 
 To stop scheduling, disable/remove the integration entry. This stops its loop and leaves real devices at their current state. If `home_scheduler:` is still loaded through YAML, remove it before deleting the entry or it will be imported again. Remove the dashboard card and uninstall the integration through HACS or delete its component folder, then restart. Delete `.storage/home_scheduler` with HA stopped only if intentionally discarding saved settings. An independent old `lighting_scheduler` installation is unaffected.
+
+## floor3dx-card 2.x
+
+Home Scheduler has no 3D engine of its own: the model and its visual editor are the installed floor3dx-card, so the move to three.js r186 in floor3dx-card 2.0 reaches the scheduler through that card. 0.4.1 was checked against floor3dx-card 2.3.0 with the integrated browser test (real scheduler backend, real renderer, demo GLB): grid editing, fan and cover motion, the embedded native editor, model imports and the learned-proposal preview all behave as with 1.4.0.
+
+What this means for a model configuration:
+
+- By default floor3dx-card 2.x draws the 1.x picture (its `lights` and `color_management` options default to `legacy`), so an imported house looks as before. Those options, `exposure`, the `look` themes, `transparent`, `hide_objects` and `rotate.ramp` pass through the import unchanged and take effect in the scheduler's model.
+- `merge_static` is turned off inside the scheduler whatever the configuration says: it merges the objects nothing binds, and the visual model editor's object picker needs every object separate.
+- floor3dx-card 2.0.2 and later name the model's objects as three.js r130 did, so object ids written against 1.x (including those of duplicated names such as `1_5_1_1`) keep matching the model.
 
 ## Troubleshooting
 

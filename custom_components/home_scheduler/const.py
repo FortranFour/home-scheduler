@@ -1,5 +1,5 @@
 """Shared names and bundled asset URL."""
 DOMAIN = "home_scheduler"
 NAME = "Home Scheduler & Simulator"
-VERSION = "0.4.0"
+VERSION = "0.4.1"
 ASSET_PATH = "/home_scheduler/"
