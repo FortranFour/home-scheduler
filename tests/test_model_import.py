@@ -1,6 +1,7 @@
 """Automatic imports exercise real bindings, schedules, rollback and isolation."""
 import copy
 import json
+import sys
 import types
 import unittest
 from pathlib import Path
@@ -168,6 +169,23 @@ devices:
         self.assertEqual(self.s.data["renderer"]["header"],"no")
         self.assertEqual(self.s.data["renderer"]["entities"][0]["light"]["follow_entity"],"yes")
         self.assertFalse(self.s.profile()["rows"][self.s.devices[0]["entity"]]["use"])
+
+    async def test_rooms_card_models_import_by_id_and_untyped_blocks_get_a_type(self):
+        house=model(); del house["type"]
+        garage=model(); del garage["type"]; garage["name"]="Garage"; garage["objfile"]="garage.glb"
+        wrapped={"type":"custom:dashboard-entity-reference","dashboard":"lovelace","card":{
+            "type":"custom:floor3dx-rooms-card","rooms":[],"models":[
+                {"id":"house","name":"House","width":62,"card":house},{"id":"garage","name":"Garage","width":38,"card":garage}]}}
+        found=sys.modules["home_scheduler_test_target.model_import"].find_models(wrapped)
+        self.assertEqual([(m["model"],m["name"],m["config"]["type"]) for m in found],[("house","House","custom:floor3dx-card"),("garage","Garage","custom:floor3dx-card")])
+        with self.assertRaisesRegex(Exception,"several models"):
+            await self.command(op="import_model",source=wrapped)
+        await self.command(op="import_model",source=wrapped,model="garage")
+        self.assertEqual(self.s.data["renderer"]["objfile"],"garage.glb")
+        self.assertEqual(self.s.data["renderer"]["type"],"custom:floor3dx-card")
+        single={"type":"custom:floor3dx-rooms-card","rooms":[],"card":house}
+        await self.command(op="import_model",source=single)
+        self.assertEqual(self.s.data["renderer"]["objfile"],"house.glb")
 
     async def test_invalid_imports_roll_back_model_rows_and_physical_state(self):
         variants=["house.glb","x: !secret model",{"renderer":model(),"aliases":{"switch.wall":"switch.wall_alias","switch.wall_alias":"switch.wall"}},

@@ -2,9 +2,9 @@
 
 Plan lights, switches and plugs, fans, blinds, curtains, other covers, and scene activations in a weekly quarter-hour grid. Play a day in an original fictional 3D home, select your own configured house model, or watch the simulated device indicators without 3D. Connect real devices when you want the same schedules to operate your home.
 
-Version **0.4.1** · Home Assistant custom integration · MIT license
+Version **0.4.2** · Home Assistant custom integration · MIT license
 
-New in 0.4.1: works with **floor3dx-card 2.x** (three.js r186); see [floor3dx-card 2.x](#floor3dx-card-2x). 0.4.0 added **Learn from actual use**, which observes linked lights, switches/plugs and fans, proposes a weekly routine from matching weekdays, and lets you review and play it in the model before saving a new schedule.
+New in 0.4.2: the preview clock drives the daylight of any imported model, and a floor3dx **Rooms Card** (2.5+) offers each of its models; see [floor3dx-card 2.x](#floor3dx-card-2x). 0.4.0 added **Learn from actual use**, which observes linked lights, switches/plugs and fans, proposes a weekly routine from matching weekdays, and lets you review and play it in the model before saving a new schedule.
 
 ![Fictional demo home at night](previews/demo-night.png)
 
@@ -379,6 +379,8 @@ What this means for a model configuration:
 
 - By default floor3dx-card 2.x draws the 1.x picture (its `lights` and `color_management` options default to `legacy`), so an imported house looks as before. Those options, `exposure`, the `look` themes, `transparent`, `hide_objects` and `rotate.ramp` pass through the import unchanged and take effect in the scheduler's model.
 - `merge_static` is turned off inside the scheduler whatever the configuration says: it merges the objects nothing binds, and the visual model editor's object picker needs every object separate.
+- The preview clock drives the model's `daylight`: inside the scheduler its `time_entity` is the simulated hour (an imported house usually follows the real `sun.sun`, which would leave its lighting still while the day plays), and a fixed `time` is dropped. A model without a `daylight` block keeps its plain lighting; add one (`daylight: {ambient: {day: 0.7, night: 0.16}}` is enough) for day and night.
+- A floor3dx **Rooms Card** (2.5 and later, `custom:floor3dx-rooms-card`), on its own or inside a wrapper such as `custom:dashboard-entity-reference`, is found by **Find models** with each of its `models:` entries offered separately (*House · Overview*, *Garage · Overview*); the `card:` blocks need no `type`. Pasting a whole Rooms Card into **Import configuration…** imports its single model, or asks you to choose when it has several.
 - floor3dx-card 2.0.2 and later name the model's objects as three.js r130 did, so object ids written against 1.x (including those of duplicated names such as `1_5_1_1`) keep matching the model.
 
 ## Troubleshooting

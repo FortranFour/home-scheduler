@@ -1,4 +1,4 @@
-/* Home Scheduler & Simulator 0.4.1 — vanilla custom card, no build step. */
+/* Home Scheduler & Simulator 0.4.2 — vanilla custom card, no build step. */
 const HS_ESCAPE = value => String(value ?? "").replace(/[&<>"']/g, ch =>
   ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 const HS_BIT = (mask, slot) => !!(parseInt(mask[slot >> 2] || "0",16) & (8 >> (slot % 4)));
@@ -22,7 +22,7 @@ class HomeSchedulerCard extends HTMLElement {
     this.disposed = false;
     this.renderJob = 0;
     this.sourceJob = 0;
-    this.modelChoices = [{id:"demo",name:"Demo home",kind:"demo",url:"/home_scheduler/demo-home.json?v=0.4.1"}];
+    this.modelChoices = [{id:"demo",name:"Demo home",kind:"demo",url:"/home_scheduler/demo-home.json?v=0.4.2"}];
   }
 
   setConfig(config) {
@@ -764,7 +764,7 @@ class HomeSchedulerCard extends HTMLElement {
     try {
       let source=this.plan.renderer||this.config.renderer;
       if(!source) {
-        const response=await fetch(this.config.renderer_url||"/home_scheduler/demo-home.json?v=0.4.1");
+        const response=await fetch(this.config.renderer_url||"/home_scheduler/demo-home.json?v=0.4.2");
         if(!response.ok) throw new Error("House configuration unavailable ("+response.status+"). Check the installed JSON file.");
         source=await response.json();
       }
@@ -822,7 +822,7 @@ class HomeSchedulerCard extends HTMLElement {
     });
     const query=message=>this._hass.callWS?this._hass.callWS(message):this._hass.connection?.sendMessagePromise(message);
     const reads=await Promise.allSettled([
-      bounded(Promise.all(["/home_scheduler/models.json?v=0.4.1",this.plan.model_presets_url].filter(Boolean).map(url=>
+      bounded(Promise.all(["/home_scheduler/models.json?v=0.4.2",this.plan.model_presets_url].filter(Boolean).map(url=>
         fetch(url,{cache:"no-store"}).then(async response=>response.ok?response.json():null))).then(indices=>({models:indices.flatMap(x=>Array.isArray(x?.models)?x.models:[])}))),
       bounded(Promise.resolve().then(()=>query({type:"lovelace/dashboards/list"})))
     ]);
@@ -847,6 +847,14 @@ class HomeSchedulerCard extends HTMLElement {
         if(!value||typeof value!=="object") return;
         if(["custom:floor3dx-card","custom:floor3d-card"].includes(value.type)) {
           add({id:"dashboard-"+(url_path||"overview")+"-"+(count++),name:(value.name||value.objfile||"House")+" · "+title,source:value,kind:"dashboard"});return;
+        }
+        // a floor3dx Rooms Card (2.5+) carries the 3D card as `card:` or, with several models, as
+        // `models[].card`, usually without a `type`; each model is offered on its own
+        if(value.type==="custom:floor3dx-rooms-card") {
+          const models=Array.isArray(value.models)&&value.models.length?value.models:(value.card&&typeof value.card==="object"?[{card:value.card}]:[]);
+          for(const m of models) if(m&&m.card&&typeof m.card==="object"&&["custom:floor3dx-card","custom:floor3d-card"].includes(m.card.type||"custom:floor3dx-card"))
+            add({id:"dashboard-"+(url_path||"overview")+"-"+(count++),name:(m.name||m.card.name||m.card.objfile||"House")+" · "+title,source:{type:"custom:floor3dx-card",...m.card},kind:"dashboard"});
+          return;
         }
         for(const child of Object.values(value)) visit(child);
       };
@@ -931,6 +939,12 @@ class HomeSchedulerCard extends HTMLElement {
     // every object separate. The other 2.x options (lights, color_management, exposure, look,
     // transparent, hide_objects, rotate.ramp, ...) pass through as the configuration has them.
     config.merge_static="no";
+    // The preview clock drives the model's daylight: an imported house usually follows the real
+    // sun.sun (or a fixed `time`), which would leave its lighting still while the day plays.
+    if(config.daylight&&typeof config.daylight==="object") {
+      config.daylight={...config.daylight,time_entity:config.daylight.time_entity||"input_number.hs_demo_hour"};
+      delete config.daylight.time;
+    }
     const renderer=await this.helpers.createCardElement(config);
     if(this.disposed || !this.showModel || job !== this.renderJob) return;
     renderer.preview=this.editorVisible;

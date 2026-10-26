@@ -476,7 +476,7 @@ class Scheduler:
             if type(expected) is not int or expected != revision:
                 raise HomeAssistantError("Model changed in another card. Discard the draft and edit the current model.")
             if op == "import_model":
-                config, metadata = parse_source(data.get("source",data.get("config")))
+                config, metadata = parse_source(data.get("source",data.get("config")), data.get("model"))
                 if data.get("demo"):
                     if config["path"] not in (ASSET_PATH,"/local/home-scheduler/") or config["objfile"]!="demo-home.glb":
                         raise ValueError("Use the supplied demo configuration")

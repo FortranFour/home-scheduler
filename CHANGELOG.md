@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.2
+
+- The preview clock drives the daylight of every model: the embedded card's `daylight.time_entity` is the simulated hour unless the configuration names one, and a fixed `daylight.time` is dropped. An imported house that followed the real `sun.sun` (floor3dx-card's default) kept the same lighting while the day played.
+- **Find models** lists each model of a floor3dx Rooms Card (`custom:floor3dx-rooms-card`, 2.5+), on its own or inside a wrapper card, and the importer accepts its untyped `card:` / `models[].card` blocks (`model` chooses one).
+- Version 0.4.2 in the integration, card and demo URLs.
+
 ## 0.4.1
 
 - Checked with floor3dx-card 2.3.0 (three.js r186): the integrated browser test passes unchanged against the new renderer. README section on what floor3dx-card 2.x means for an imported model.

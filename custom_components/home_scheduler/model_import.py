@@ -23,7 +23,7 @@ def validate_model(config):
     return json.loads(encoded)
 
 
-def parse_source(source):
+def parse_source(source, model=None):
     if isinstance(source, str):
         if len(source.encode()) > 524288:
             raise ValueError("Import configuration exceeds 512 KiB")
@@ -51,21 +51,48 @@ def parse_source(source):
         raise ValueError("Choose a model configuration, not the GLB/OBJ geometry file")
     metadata = source if isinstance(source, dict) and "renderer" in source else {}
     root = metadata.get("renderer", source)
-    found = []
-    def visit(value):
-        if isinstance(value, dict):
-            if value.get("type") in ("custom:floor3dx-card", "custom:floor3d-card"):
-                found.append(value)
-                return
-            for child in value.values():
-                visit(child)
-        elif isinstance(value, list):
-            for child in value:
-                visit(child)
-    visit(root)
+    found = find_models(root)
+    if model is not None:
+        found = [m for m in found if m.get("model") == model]
     if len(found) != 1:
+        if len(found) > 1 and all(m.get("model") for m in found):
+            raise ValueError("This Rooms Card holds several models (" + ", ".join(m["model"] for m in found) + "); choose one with Find models, or import that model's card: block alone")
         raise ValueError("Import one floor3dx card configuration; use the model selector for cards in a dashboard")
-    return validate_model(found[0]), metadata
+    return validate_model(found[0]["config"]), metadata
+
+
+ROOMS_CARD = "custom:floor3dx-rooms-card"
+
+
+def find_models(value, found=None):
+    """Every floor3dx card configuration in a dashboard, card or wrapper, as {config, model, name}.
+
+    The 3D card itself, and the `card:` or `models[].card` blocks of a floor3dx Rooms Card (2.5+), whose
+    blocks usually carry no `type`: one is added. A wrapper such as `custom:dashboard-entity-reference`
+    is walked through like any other card."""
+    if found is None:
+        found = []
+    if isinstance(value, dict):
+        if value.get("type") in ("custom:floor3dx-card", "custom:floor3d-card"):
+            found.append({"config": value, "model": None, "name": value.get("name")})
+            return found
+        if value.get("type") == ROOMS_CARD:
+            models = value.get("models") if isinstance(value.get("models"), list) else []
+            blocks = [(m.get("id") or m.get("name") or str(i + 1), m.get("name"), m.get("card")) for i, m in enumerate(models) if isinstance(m, dict)]
+            if not blocks and isinstance(value.get("card"), dict):
+                blocks = [(None, value.get("title"), value["card"])]
+            for model_id, name, card in blocks:
+                if isinstance(card, dict) and card.get("type", "custom:floor3dx-card") in ("custom:floor3dx-card", "custom:floor3d-card"):
+                    config = dict(card)
+                    config.setdefault("type", "custom:floor3dx-card")
+                    found.append({"config": config, "model": model_id, "name": name or config.get("name")})
+            return found
+        for child in value.values():
+            find_models(child, found)
+    elif isinstance(value, list):
+        for child in value:
+            find_models(child, found)
+    return found
 
 
 def import_bindings(config, metadata, remembered, states):

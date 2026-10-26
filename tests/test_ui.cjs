@@ -14,6 +14,10 @@ imported.entities=[binding(0,'light.fixture_living'),binding(1,'light.fixture_li
  binding(16,'binary_sensor.fixture_door'),binding(7,'climate.fixture_room')];
 imported.entities[1].color_entity='light.fixture_living';
 const personal={renderer:imported,legacy_domain:'lighting_scheduler',aliases:{'switch.fixture_alias':'switch.fixture_wall'}};
+// A floor3dx Rooms Card (2.5+) in a wrapper: two untyped model blocks, daylight on the default sun.sun.
+const roomsModel=(name)=>{const m=structuredClone(imported);delete m.type;m.name=name;m.daylight={ambient:{day:.7,night:.16}};return m;};
+const roomsCard={type:'custom:dashboard-entity-reference',dashboard:'lovelace',card:{type:'custom:floor3dx-rooms-card',rooms:[],
+ models:[{id:'house',name:'Rooms house',width:62,card:roomsModel('Rooms house')},{id:'garage',name:'Rooms garage',width:38,card:roomsModel('Rooms garage')}]}};
 if(!process.env.FLOOR3DX_BUNDLE) throw new Error('Set FLOOR3DX_BUNDLE to floor3dx-card 1.4.0 dist/floor3dx-card.js.');
 const html=`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
 body{margin:0;padding:12px;font:14px Arial;background:#edf1f5;--primary-text-color:#233443;--secondary-text-color:#657787;--primary-color:#009bcc;--rgb-primary-color:0,155,204;--card-background-color:#fff;--divider-color:#dce4ea;--error-color:#b00020;--secondary-background-color:#f0f5f8}ha-card{display:block;background:white}</style><home-assistant></home-assistant><home-scheduler-card></home-scheduler-card>`;
@@ -47,7 +51,7 @@ const address=new Promise((resolve,reject)=>{let buffer='';server.stdout.on('dat
   await page.goto('http://scheduler.test/');
   await page.addScriptTag({content:fs.readFileSync(path.join(__dirname,'ha_editor_stubs.js'),'utf8')});
   await page.addScriptTag({type:'module',url:'http://scheduler.test/floor3dx.js'});
-  await page.evaluate(async imported=>{
+  await page.evaluate(async ([imported,roomsCard])=>{
    window.calls=[];window.deviceCalls=0;window.bubbledConfigs=0;window.pending=0;
    document.addEventListener('config-changed',()=>bubbledConfigs++);
    const value=await(await fetch('/api/state')).json();
@@ -70,11 +74,11 @@ const address=new Promise((resolve,reject)=>{let buffer='';server.stdout.on('dat
         return {response:result.response};
       }
       if(message.type==='lovelace/dashboards/list')return [{url_path:'dashboard-house',title:'House dashboard'}];
-      if(message.type==='lovelace/config')return {views:[{cards:message.url_path==='dashboard-house'?[imported]:[]}]};
+      if(message.type==='lovelace/config')return {views:[{cards:message.url_path==='dashboard-house'?[imported,roomsCard]:[]}]};
       return [];
     },connection:{sendMessagePromise:async()=>[],sendMessage:()=>null}};
    window.loadCardHelpers=async()=>({createCardElement:config=>{const el=document.createElement(config.type.slice(7));el.setConfig(config);return el;}});
-  },imported);
+  },[imported,roomsCard]);
   await page.addScriptTag({url:'http://scheduler.test/home_scheduler/home-scheduler-card.js'});
   await page.evaluate(()=>{window.card=document.querySelector('home-scheduler-card');card.setConfig({model_editor:false});card.hass=realHass;});
   try{await page.waitForFunction(()=>card.renderer?._modelready,null,{timeout:25000});}
@@ -198,6 +202,17 @@ const address=new Promise((resolve,reject)=>{let buffer='';server.stdout.on('dat
   assert.equal(await page.evaluate(()=>card.plan.devices[0].target),'light.fixture_living');
   assert.equal(await page.evaluate(()=>card.savedRenderer.entities[0].entity),await page.evaluate(()=>card.savedRenderer.entities[1].entity),'Repeated light bindings share one row');
   assert.equal(await page.evaluate(()=>card.savedRenderer.entities[6].entity),'binary_sensor.fixture_door');
+  // Each model of a Rooms Card in a wrapper is offered; its untyped block imports, and the preview clock drives its daylight.
+  assert.deepEqual(await page.evaluate(()=>card.modelChoices.filter(x=>x.id.startsWith('dashboard-dashboard-house-')).map(x=>x.name)),
+   ['Imported house · House dashboard','Rooms house · House dashboard','Rooms garage · House dashboard']);
+  await q('#model-select').selectOption('dashboard-dashboard-house-2');
+  await waitFor(()=>!card.modelImporting&&card.renderer._modelready&&card.savedRenderer.name==='Rooms garage');
+  assert.equal(await page.evaluate(()=>card.savedRenderer.type),'custom:floor3dx-card');
+  assert.deepEqual(await page.evaluate(()=>card.renderer._config.daylight),{ambient:{day:.7,night:.16},time_entity:'input_number.hs_demo_hour'});
+  const ambientAt=async minute=>{await command({op:'settings',minute});await page.waitForFunction(m=>card.frame.minute===m,minute,{timeout:10000});await page.waitForTimeout(400);return page.evaluate(()=>{let a=0;card.renderer._scene.traverse(o=>{if(o.isHemisphereLight||o.isAmbientLight)a+=o.intensity;});return a;});};
+  assert.ok(await ambientAt(12*60)>await ambientAt(23*60)*2,'The model is darker at the simulated 23:00 than at noon');
+  await q('#model-select').selectOption('dashboard-dashboard-house-0');
+  await waitFor(()=>!card.modelImporting&&card.renderer._modelready&&card.savedRenderer.name==='Imported house');
   assert.equal(await page.evaluate(()=>card.plan.last_import.thermostats),1);
   await q('[data-fill-row="0"][data-value="true"]').click();
   await waitFor(()=>card.frame.states[card.plan.devices[0].entity].state==='on'&&card.renderer._scene.getObjectByName('LivingLamp_light').intensity>0);

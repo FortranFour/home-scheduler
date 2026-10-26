@@ -1,7 +1,7 @@
-# Home Scheduler & Simulator 0.4.1
+# Home Scheduler & Simulator 0.4.2
 
-A compatibility release for **floor3dx-card 2.x** (three.js r186). The scheduler embeds floor3dx-card's renderer and visual editor; this release has been checked against floor3dx-card 2.3.0 as well as 1.4.0, and the integrated browser test passes unchanged against the new renderer.
+**The preview clock now drives the daylight of any model.** A house imported from a dashboard usually leaves floor3dx-card's `daylight` on its default `sun.sun`, so inside the scheduler it followed the real sun and its lighting stood still while the day played. The embedded card now gets the simulated hour as its `daylight.time_entity` (unless the configuration names one), and a fixed `daylight.time` is dropped for the preview. A model without a `daylight` block keeps its plain lighting; add one for day and night.
 
-The embedded model always runs with floor3dx-card's `merge_static` option off, so the object picker in the visual model editor reaches every object in the imported model. The other 2.x options (`lights`, `color_management`, `exposure`, the look themes) pass through the import as configured, so a model tuned in a floor3dx-card dashboard looks the same inside the scheduler. See [README.md](README.md#floor3dx-card-2x) for what floor3dx-card 2.x means for an imported model.
+**Rooms Card models.** A floor3dx **Rooms Card** (2.5 and later) keeps the 3D card as `card:` or, with several models, as `models[].card`, usually without a `type`. **Find models** now lists each of them (*House · Overview*, *Garage · Overview*), inside a wrapper card too, and **Import configuration…** accepts a Rooms Card's block (asking you to choose when it holds several models).
 
-Version 0.4.1 appears in the integration, the card and the demo URLs (cache-busting). Existing schedules, private models, dashboard cards and resources continue to work; no YAML change is needed. The 0.4.0 notes on **Learn from actual use** are in [CHANGELOG.md](CHANGELOG.md).
+Version 0.4.2 appears in the integration, the card and the demo URLs (cache-busting). Existing schedules, private models, dashboard cards and resources continue to work; no YAML change is needed. Earlier notes are in [CHANGELOG.md](CHANGELOG.md).
